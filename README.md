@@ -135,3 +135,14 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
 
 **[5]** C. Sonmez, A. Ozgovde and C. Ersoy, "[Machine Learning-Based Workload Orchestrator for Vehicular Edge Computing](https://ieeexplore.ieee.org/abstract/document/9208723/)," in *IEEE Transactions on Intelligent Transportation Systems*, doi: 10.1109/TITS.2020.3024233.
 # meta-edgecloudsim
+
+## To make new scenario
+## Change following files
+> scripts/{scenario_name}: 
+  1. compile.sh
+  2. runner.sh
+  3. matlab/getConfiguration.m
+> src/edu/boun/edgecloudsim
+  1. MainApp.java
+    * Pakage
+    * SCENARIO_NAME
