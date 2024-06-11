@@ -37,9 +37,6 @@ do
 	scenario_name=$(echo $sim_args | cut -d ';' -f1)
 	edge_devices_file=$(echo $sim_args | cut -d ';' -f2)
 	applications_file=$(echo $sim_args | cut -d ';' -f3)
-	mkdir -p $simulation_out_folder/${scenario_name}
-	echo "STARTED" > $simulation_out_folder/${scenario_name}/progress.log
-	
 	for (( i=1; i<=$iterationNumber; i++ ))
 	do
 		process_id=$(($process_counter % $num_of_processes))
@@ -55,6 +52,7 @@ for (( i=0; i<$num_of_processes; i++ ))
 do
 	chmod +x ${simulation_out_folder}/tmp_runner${i}.sh
 	${simulation_out_folder}/tmp_runner${i}.sh &
+
 # 	pid=$!
 #	cpu=$(($i % $num_of_cores))
 # 	taskset -cp $cpu,$cpu $pid
