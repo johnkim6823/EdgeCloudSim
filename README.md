@@ -2,6 +2,20 @@
 
 EdgeCloudSim provides a simulation environment specific to Edge Computing scenarios where it is possible to conduct experiments that considers both computational and networking resources. EdgeCloudSim is based on CloudSim but adds considerable functionality so that it can be efficiently used for Edge Computing scenarios. EdgeCloudSim is an open source tool and any contributions are welcome. If you want to contribute EdgeCloudSim, please check below feature list and the [contributing guidelines](/CONTRIBUTING.md). If you want to use EdgeCloudSim in your research work, please cite our paper [[3]](https://onlinelibrary.wiley.com/doi/abs/10.1002/ett.3493).
 
+## Environment
+Ubuntu 20.0.4.6
+
+
+## PREREQUISITE 
+```
+sudo apt-get update
+```
+```
+sudo apt-get upgrade
+```
+```
+sudo apt install default-jre default-jdk maven
+```
 ## Discussion Forum
 
 The discussion forum for EdgeCloudSim can be found [here](https://groups.google.com/forum/#!forum/edgecloudsim).
@@ -92,7 +106,7 @@ In order to run multiple sample_application scenarios in parallel, you can use *
 
 You can also monitor each process via the output files located under *scripts/sample_application/output/date* folder. For example:
 ```
-./run_scenarios.sh 8 10
+./run_scenarios.sh {# of parallel Processes} {# of iteration}
 tail -f output/date/ite_1.log
 ```
 
@@ -120,3 +134,4 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
 **[4]** C. Sonmez, A. Ozgovde and C. Ersoy, "[Fuzzy Workload Orchestration for Edge Computing](https://ieeexplore.ieee.org/abstract/document/8651335/)," in *IEEE Transactions on Network and Service Management*, vol. 16, no. 2, pp. 769-782, June 2019.
 
 **[5]** C. Sonmez, A. Ozgovde and C. Ersoy, "[Machine Learning-Based Workload Orchestrator for Vehicular Edge Computing](https://ieeexplore.ieee.org/abstract/document/9208723/)," in *IEEE Transactions on Intelligent Transportation Systems*, doi: 10.1109/TITS.2020.3024233.
+# meta-edgecloudsim
