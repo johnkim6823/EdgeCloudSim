@@ -137,12 +137,12 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
 # meta-edgecloudsim
 
 ## To make new scenario
-## Change following files
-> scripts/{scenario_name}: 
+### Change following files
+**[scripts/{scenario_name}:]** 
   1. compile.sh
   2. runner.sh
   3. matlab/getConfiguration.m
-> src/edu/boun/edgecloudsim
+**[src/edu/boun/edgecloudsim]**
   1. MainApp.java
     * Pakage
     * SCENARIO_NAME
