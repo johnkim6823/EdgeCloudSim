@@ -9,7 +9,7 @@
  * Copyright (c) 2022, Bogazici University, Istanbul, Turkey
  */
 
-package edu.boun.edgecloudsim.applications.scenario3;
+package edu.boun.edgecloudsim.applications.scenario_mj;
 
 import java.util.List;
 

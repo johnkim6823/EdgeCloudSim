@@ -144,6 +144,5 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
   3. matlab/getConfiguration.m
 
 **src/edu/boun/edgecloudsim**
-  1. MainApp.java
-    * Pakage
-    * SCENARIO_NAME
+  1. Change all .java file's pakage to corresponding scenario_name
+  2. In MainApp.java, change SCENARIO_NAME into corresponding scenario_name

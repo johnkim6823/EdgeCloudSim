@@ -15,7 +15,7 @@
  * Copyright (c) 2017, Bogazici University, Istanbul, Turkey
  */
 
-package edu.boun.edgecloudsim.applications.scenario3;
+package edu.boun.edgecloudsim.applications.scenario_mj;
 
 import org.cloudbus.cloudsim.core.CloudSim;
 
