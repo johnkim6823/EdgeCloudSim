@@ -146,3 +146,33 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
 **src/edu/boun/edgecloudsim**
   1. Change all .java file's pakage to corresponding scenario_name
   2. In MainApp.java, change SCENARIO_NAME into corresponding scenario_name
+
+
+## MOTIVATIONS
+### motivation1
+Testing Offloading Scenario. Mobile to Edge only
+
+orchestrator_policies = RANDOM / MOBILE_UTIL_HEURISTIC / EDGE_UTIL_HEURISTIC
+```
+Random: A random ES selected to offload task
+```
+```
+MOBILE_UTIL_HEURISTIC: If average MD CPU utilization less than 75 then, execute task loccally, otherwise offload to edge server.
+```
+```
+EDGE_UTIL_HEURISTIC: if average ES CPU utilization less than 90 then, execute task to edge server, otherwise, exectue task locally.
+```
+### motivation2
+Testing Task Processing Scenario. Only Edge, MD, Hybrid
+```
+only Edge: Task Processing occurs in only ES
+```
+```
+only MD: Task Processing occurs in only MD
+```
+```
+HYBRID: ES의 VM CPU 사용량 예측 -> 핅요한 CPU 용량 계산
+        현재 VM의 CPU 사용량 가져옴
+        100% - 현재 사용량
+        작업의 요구 용량 < 현재 VM 사용 가능한 용량 -> offloading
+```
