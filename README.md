@@ -170,8 +170,8 @@ only Edge: Task Processing occurs in only ES
 ```
 only MD: Task Processing occurs in only MD
 ```
-```
-HYBRID: ES의 VM CPU 사용량 예측 -> 핅요한 CPU 용량 계산
+``` 
+HYBRID: ES의 VM CPU 사용량 예측 -> 필요한 CPU 용량 계산
         현재 VM의 CPU 사용량 가져옴
         100% - 현재 사용량
         작업의 요구 용량 < 현재 VM 사용 가능한 용량 -> offloading
