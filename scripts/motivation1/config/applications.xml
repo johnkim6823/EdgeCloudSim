@@ -14,7 +14,7 @@
         <required_core>2</required_core>
         <vm_utilization_on_edge>6.0</vm_utilization_on_edge>
         <vm_utilization_on_cloud>0.6</vm_utilization_on_cloud>
-        <vm_utilization_on_mobile>0</vm_utilization_on_mobile>
+        <vm_utilization_on_mobile>30</vm_utilization_on_mobile>
     </application>
 
     <!-- Application for Google Speech Commands Dataset -->
@@ -31,7 +31,7 @@
         <required_core>1</required_core>
         <vm_utilization_on_edge>3.0</vm_utilization_on_edge>
         <vm_utilization_on_cloud>0.3</vm_utilization_on_cloud>
-        <vm_utilization_on_mobile>0</vm_utilization_on_mobile>
+        <vm_utilization_on_mobile>15</vm_utilization_on_mobile>
     </application>
 
     <!-- Application for Human Activity Recognition Using Smartphones -->
@@ -48,7 +48,7 @@
         <required_core>1</required_core>
         <vm_utilization_on_edge>2.0</vm_utilization_on_edge>
         <vm_utilization_on_cloud>0.2</vm_utilization_on_cloud>
-        <vm_utilization_on_mobile>0</vm_utilization_on_mobile>
+        <vm_utilization_on_mobile>12</vm_utilization_on_mobile>
     </application>
 
     <!-- Application for Urban Sound Dataset -->
@@ -65,7 +65,7 @@
         <required_core>2</required_core>
         <vm_utilization_on_edge>5.0</vm_utilization_on_edge>
         <vm_utilization_on_cloud>0.5</vm_utilization_on_cloud>
-        <vm_utilization_on_mobile>0</vm_utilization_on_mobile>
+        <vm_utilization_on_mobile>25</vm_utilization_on_mobile>
     </application>
 
     <!-- Application for CIFAR-10/CIFAR-100 Dataset -->
@@ -82,6 +82,6 @@
         <required_core>1</required_core>
         <vm_utilization_on_edge>3.5</vm_utilization_on_edge>
         <vm_utilization_on_cloud>0.35</vm_utilization_on_cloud>
-        <vm_utilization_on_mobile>0</vm_utilization_on_mobile>
+        <vm_utilization_on_mobile>18</vm_utilization_on_mobile>
     </application>
 </applications>
