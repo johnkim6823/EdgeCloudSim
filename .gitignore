@@ -28,12 +28,4 @@ sim_results
 *.iml
 out
 gen
-
-# Ignore everything in the PerformaceEvaluation directory
-PerformaceEvaluation/*
-
-# Except the evaluate.py file
-!PerformaceEvaluation/evaluate.py
-
-# Allow tracking of other directories if needed
-!PerformaceEvaluation/*/
+PerformaceEvaluation
