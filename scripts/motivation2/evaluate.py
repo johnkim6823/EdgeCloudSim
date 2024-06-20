@@ -7,6 +7,7 @@ from natsort import natsorted
 import pandas as pd
 from index_mapping import index_to_name
 
+
 def create_evaluation_folder():
     evaluation_dir = os.path.join(os.getcwd(), 'evaluation')
     os.makedirs(evaluation_dir, exist_ok=True)
@@ -26,27 +27,21 @@ def extract_and_categorize_tar(file_path, output_dir):
             for file in files:
                 if file.endswith('.log'):
                     parts = file.split('_')
-                    try:
-                        policy_name = next('_'.join(parts[i + 1:j]) for i, part in enumerate(parts) if part == 'SCENARIO' for j in range(i + 1, len(parts)) if 'DEVICES' in parts[j])
-                        category_name = next('_'.join(parts[j + 1:]).replace('.log', '') for j in range(len(parts)) if 'DEVICES' in parts[j])
+                    policy_name = next(('_'.join(parts[i + 1:j]) for i, part in enumerate(parts) if part == 'SCENARIO' for j in range(i + 1, len(parts)) if 'DEVICES' in parts[j]), None)
+                    category_name = next(('_'.join(parts[j + 1:]).replace('.log', '') for j in range(len(parts)) if 'DEVICES' in parts[j]), None)
+                    if policy_name and category_name:
                         policy_dir = os.path.join(output_dir, policy_name)
-                        os.makedirs(policy_dir, exist_ok=True)
                         category_dir = os.path.join(policy_dir, category_name)
                         os.makedirs(category_dir, exist_ok=True)
                         shutil.move(os.path.join(root, file), os.path.join(category_dir, file))
-                    except StopIteration:
-                        pass
     except Exception as e:
         print(f"Error extracting tar file {file_path}: {e}")
 
 def copy_and_extract_files(base_dir, date_dir):
-    if not os.path.exists(base_dir):
-        return []
-
     ite_dirs = []
 
     for file_name in os.listdir(base_dir):
-        if file_name.endswith('.tar.gz') or file_name.endswith('.log'):
+        if file_name.endswith(('.tar.gz', '.log')):
             ite_name = file_name.split('.')[0]  # Extract the name without extension
             ite_dir = os.path.join(date_dir, ite_name)
             os.makedirs(ite_dir, exist_ok=True)
@@ -69,6 +64,17 @@ def remove_progress_folder(date_dir):
     progress_dir = os.path.join(date_dir, 'progress')
     if os.path.exists(progress_dir):
         shutil.rmtree(progress_dir)
+
+def convert_logs_to_single_line(log_file_path):
+    try:
+        with open(log_file_path, 'r') as lf:
+            lines = [line.strip() for line in lf.readlines()]
+        if len(lines) > 1:
+            single_line = ";".join(lines[1:])  # Combine all lines after the header
+            with open(log_file_path, 'w') as lf:
+                lf.write(single_line)
+    except Exception as e:
+        print(f"Error converting log file {log_file_path} to single line: {e}")
 
 def read_logs(date_evaluation_dir):
     log_data = {}
@@ -93,9 +99,10 @@ def read_logs(date_evaluation_dir):
                             for log_file in natsorted(os.listdir(category_path)):
                                 if log_file.endswith('.log'):
                                     log_file_path = os.path.join(category_path, log_file)
+                                    convert_logs_to_single_line(log_file_path)
                                     try:
                                         with open(log_file_path, 'r') as lf:
-                                            log_files[log_file] = [line.strip() for line in lf.readlines()[1:]]  # Skip the first line
+                                            log_files[log_file] = [line.strip() for line in lf.readlines()]
                                             total_logs += 1
                                     except Exception as e:
                                         print(f"Error reading log file {log_file_path}: {e}")
@@ -152,26 +159,19 @@ def select_option(options, option_name):
         except ValueError:
             print(f"Please enter a valid number for {option_name}.")
 
-def print_log_line(line, index):
+def print_log_line(line, data, ite, policy_name, devices, category):
     items = line.split(';')
-    for item_idx, item in enumerate(items):
-        name = index_to_name.get(index, "")
-        if name:
-            print(f"{index}: {name}: {item.strip()}")
-        index += 1
-    return index
-
-def parse_log_to_df(log_lines, ite, policy_name, devices, category):
-    data = {'ite': ite, 'policy_name': policy_name, 'devices': devices, 'category': category}
+    data['ite'].append(ite)
+    data['policy_name'].append(policy_name)
+    data['devices'].append(devices)
+    data['category'].append(category)
     index = 0
-    for line in log_lines:
-        items = line.split(';')
-        for item_idx, item in enumerate(items):
-            name = index_to_name.get(index, "")
-            if name:
-                data[name] = item.strip()
-            index += 1
-    return pd.DataFrame([data])
+    for item in items:
+        name = index_to_name.get(index)
+        data[name].append(item)
+        print(f"{index}. {name}: {item}")   
+        index += 1
+    
 
 if __name__ == "__main__":
     try:
@@ -184,8 +184,8 @@ if __name__ == "__main__":
             log_data = process_files_by_date(base_path, input_date)
 
             # Initialize an empty DataFrame to store all logs
-            all_logs_df = pd.DataFrame()
-
+            data = {key: [] for key in ['ite', 'policy_name', 'devices', 'category'] + list(index_to_name.values())}
+            print(len(data))
             ite_keys = natsorted(list(log_data.keys()))
             print("\n" + "-"*50 + "\n")
             print("Available ITEs:")
@@ -193,28 +193,34 @@ if __name__ == "__main__":
 
             if ite_selection == 'ALL':
                 selected_ites = ite_keys
+                ite_part = 'all_ites'
             else:
                 selected_ites = [ite_selection]
+                ite_part = ite_selection
 
-            policy_keys = natsorted({policy for ite in selected_ites for policy in log_data[ite].keys()})
+            policy_keys = natsorted({policy for ite in selected_ites for policy in log_data.get(ite, {}).keys()})
             print("\n" + "-"*50 + "\n")
             print("Available Policies:")
             policy_selection = select_option(policy_keys, "Policies")
 
             if policy_selection == 'ALL':
                 selected_policies = policy_keys
+                policy_part = 'all_policies'
             else:
                 selected_policies = [policy_selection]
+                policy_part = policy_selection
 
-            category_keys = natsorted({category for ite in selected_ites for policy in selected_policies for category in log_data[ite][policy].keys()})
+            category_keys = natsorted({category for ite in selected_ites for policy in selected_policies for category in log_data.get(ite, {}).get(policy, {}).keys()})
             print("\n" + "-"*50 + "\n")
             print("Available Categories:")
             category_selection = select_option(category_keys, "Categories")
 
             if category_selection == 'ALL':
                 selected_categories = category_keys
+                category_part = 'all_categories'
             else:
                 selected_categories = [category_selection]
+                category_part = category_selection
 
             for ite in selected_ites:
                 for policy in selected_policies:
@@ -224,21 +230,17 @@ if __name__ == "__main__":
 
                             for log_file, log_lines in log_data[ite][policy][category].items():
                                 print(f"\n--- {log_file} ---")
-                                index = 0  # Initialize the index counter for each log file
-                                for line in log_lines:
-                                    index = print_log_line(line, index)
-
-                                # Extract devices count from log file name
                                 devices = [part.replace('DEVICES', '') for part in log_file.split('_') if 'DEVICES' in part][0]
-                                log_df = parse_log_to_df(log_lines, ite, policy, devices, category)
-                                all_logs_df = pd.concat([all_logs_df, log_df], ignore_index=True)
+                                print_log_line(log_lines[0], data, ite, policy, devices, category)
 
+            df = pd.DataFrame(data)
+            print(df.iloc[:, :10])  # 첫 10개의 열만 출력
+
+            # CSV로 저장할지 여부를 묻는 부분 추가
             save_choice = input("Do you want to save the logs to CSV? (y/n): ").lower()
             if save_choice == 'y':
-                all_logs_df.to_csv(f'{input_date}_logs_{category_selection}.csv', index=False)
-
-            print("\n--- Process Finished ---")
-            print(all_logs_df)
+                file_name = f"{input_date}_logs_{ite_part}_{policy_part}_{category_part}.csv"
+                df.to_csv(file_name, index=False)
 
     except KeyboardInterrupt:
         print("\n--- Exit ---")
