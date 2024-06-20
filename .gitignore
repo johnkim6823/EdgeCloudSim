@@ -29,4 +29,9 @@ sim_results
 out
 gen
 evaluation
+
+#CSV files
 *.csv
+
+#venv
+venv
