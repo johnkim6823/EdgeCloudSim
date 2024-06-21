@@ -5,20 +5,24 @@ import sys
 from datetime import datetime
 from natsort import natsorted
 import pandas as pd
+import matplotlib.pyplot as plt
 from index_mapping import index_to_name
 
 
 def create_evaluation_folder():
+    # Create evaluation folder if it does not exist
     evaluation_dir = os.path.join(os.getcwd(), 'evaluation')
     os.makedirs(evaluation_dir, exist_ok=True)
     return evaluation_dir
 
 def remove_and_create_date_folder(date_dir):
+    # Remove existing date folder and create a new one
     if os.path.exists(date_dir):
         shutil.rmtree(date_dir)
     os.makedirs(date_dir, exist_ok=True)
 
 def extract_and_categorize_tar(file_path, output_dir):
+    # Extract tar file and categorize logs
     try:
         with tarfile.open(file_path, 'r:gz') as tar:
             tar.extractall(path=output_dir)
@@ -38,6 +42,7 @@ def extract_and_categorize_tar(file_path, output_dir):
         print(f"Error extracting tar file {file_path}: {e}")
 
 def copy_and_extract_files(base_dir, date_dir):
+    # Copy and extract files from base directory to date directory
     ite_dirs = []
 
     for file_name in os.listdir(base_dir):
@@ -55,17 +60,20 @@ def copy_and_extract_files(base_dir, date_dir):
     return ite_dirs
 
 def remove_nested_ite_folders(ite_dirs):
+    # Remove nested ITE folders if any
     for ite_dir in ite_dirs:
         nested_ite_dir = os.path.join(ite_dir, os.path.basename(ite_dir))
         if os.path.exists(nested_ite_dir):
             shutil.rmtree(nested_ite_dir)
 
 def remove_progress_folder(date_dir):
+    # Remove progress folder if exists
     progress_dir = os.path.join(date_dir, 'progress')
     if os.path.exists(progress_dir):
         shutil.rmtree(progress_dir)
 
 def convert_logs_to_single_line(log_file_path):
+    # Convert multi-line log files to single line
     try:
         with open(log_file_path, 'r') as lf:
             lines = [line.strip() for line in lf.readlines()]
@@ -77,6 +85,7 @@ def convert_logs_to_single_line(log_file_path):
         print(f"Error converting log file {log_file_path} to single line: {e}")
 
 def read_logs(date_evaluation_dir):
+    # Read logs from the date evaluation directory
     log_data = {}
     total_logs = 0
     unique_policies = set()
@@ -122,6 +131,7 @@ def read_logs(date_evaluation_dir):
     return log_data
 
 def process_files_by_date(base_path, date_str):
+    # Process files by date
     try:
         date = datetime.strptime(date_str, '%d-%m-%Y_%H-%M')
         date_dir_name = date.strftime('%d-%m-%Y_%H-%M')
@@ -143,6 +153,7 @@ def process_files_by_date(base_path, date_str):
         print(f"An error occurred: {e}")
 
 def select_option(options, option_name):
+    # Select option from a list
     options = natsorted(options)
     print(f"0. Process all {option_name.lower()}")
     for idx, option in enumerate(options):
@@ -160,6 +171,7 @@ def select_option(options, option_name):
             print(f"Please enter a valid number for {option_name}.")
 
 def print_log_line(line, data, ite, policy_name, devices, category):
+    # Print and collect log lines into the data dictionary
     items = line.split(';')
     data['ite'].append(ite)
     data['policy_name'].append(policy_name)
@@ -172,6 +184,43 @@ def print_log_line(line, data, ite, policy_name, devices, category):
         print(f"{index}. {name}: {item}")   
         index += 1
     
+def plot_graph(mean_df, graph_dir):
+    # Select x and y values for the graph
+    print("\nSelect the columns for the X and Y axis of the graph:\n")
+    columns = mean_df.columns.tolist()
+    for idx, column in enumerate(columns):
+        print(f"{idx + 1}. {column}")
+    
+    while True:
+        try:
+            x_selection = int(input("\nSelect column for X axis by number: ")) - 1
+            y_selection = int(input("Select column for Y axis by number: ")) - 1
+            if 0 <= x_selection < len(columns) and 0 <= y_selection < len(columns):
+                x_col = columns[x_selection]
+                y_col = columns[y_selection]
+                break
+            else:
+                print("Invalid selection. Please try again.")
+        except ValueError:
+            print("Please enter a valid number.")
+    
+    # Plot the graph for each policy_name on the same graph
+    plt.figure(figsize=(10, 6))
+    policies = mean_df['policy_name'].unique()
+    for policy in policies:
+        policy_df = mean_df[mean_df['policy_name'] == policy]
+        plt.plot(policy_df[x_col], policy_df[y_col], marker='o', label=policy)
+    plt.xlabel(x_col)
+    plt.ylabel(y_col)
+    plt.title(f'{y_col} vs {x_col}')
+    plt.legend()
+    plt.grid(True)
+    
+    # Save the graph
+    graph_file_name = os.path.join(graph_dir, f"{x_col}_vs_{y_col}.png")
+    plt.savefig(graph_file_name)
+    print(f"Graph saved to {graph_file_name}")
+    plt.show()
 
 if __name__ == "__main__":
     try:
@@ -185,7 +234,7 @@ if __name__ == "__main__":
 
             # Initialize an empty DataFrame to store all logs
             data = {key: [] for key in ['ite', 'policy_name', 'devices', 'category'] + list(index_to_name.values())}
-            print(len(data))
+
             ite_keys = natsorted(list(log_data.keys()))
             print("\n" + "-"*50 + "\n")
             print("Available ITEs:")
@@ -233,14 +282,52 @@ if __name__ == "__main__":
                                 devices = [part.replace('DEVICES', '') for part in log_file.split('_') if 'DEVICES' in part][0]
                                 print_log_line(log_lines[0], data, ite, policy, devices, category)
 
+            # Create a DataFrame from the collected data
             df = pd.DataFrame(data)
-            print(df.iloc[:, :10])  # 첫 10개의 열만 출력
 
-            # CSV로 저장할지 여부를 묻는 부분 추가
+            # Convert appropriate columns to numeric types
+            numeric_cols = list(index_to_name.values()) + ["devices"]
+            df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
+
+            # Sort the DataFrame by 'policy_name' and 'devices'
+            sorted_df = df.sort_values(by=['policy_name', 'devices'])
+
+            # Calculate the means of the numeric columns
+            numeric_columns = sorted_df.select_dtypes(include=['number']).columns
+            mean_df = sorted_df.groupby(['policy_name', 'devices'], as_index=False)[numeric_columns].mean()
+
+            # Create csv and graph directories
+            base_output_dir = os.path.join('evaluation', input_date)
+            csv_dir = os.path.join(base_output_dir, 'csv')
+            graph_dir = os.path.join(base_output_dir, 'graph')
+            os.makedirs(csv_dir, exist_ok=True)
+            os.makedirs(graph_dir, exist_ok=True)
+
+            # Ask to save the logs to CSV
             save_choice = input("Do you want to save the logs to CSV? (y/n): ").lower()
             if save_choice == 'y':
-                file_name = f"{input_date}_logs_{ite_part}_{policy_part}_{category_part}.csv"
+                file_name = os.path.join(csv_dir, f"{input_date}_logs_{ite_part}_{policy_part}_{category_part}.csv")
                 df.to_csv(file_name, index=False)
+                print(f"Data saved to {file_name}")
 
+            # Ask to save the sorted logs to CSV
+            save_sorted_choice = input("Do you want to save the sorted logs to CSV? (y/n): ").lower()
+            if save_sorted_choice == 'y':
+                sorted_file_name = os.path.join(csv_dir, f"{input_date}_logs_sorted_{ite_part}_{policy_part}_{category_part}.csv")
+                sorted_df.to_csv(sorted_file_name, index=False)
+                print(f"Sorted data saved to {sorted_file_name}")
+
+            # Ask to save the mean logs to CSV
+            save_mean_choice = input("Do you want to save the mean logs to CSV? (y/n): ").lower()
+            if save_mean_choice == 'y':
+                mean_file_name = os.path.join(csv_dir, f"{input_date}_logs_mean_{ite_part}_{policy_part}_{category_part}.csv")
+                mean_df.to_csv(mean_file_name, index=False)
+                print(f"Mean data saved to {mean_file_name}")
+            
+            # Ask to plot the graph
+            plot_choice = input("Do you want to plot a graph from the mean data? (y/n): ").lower()
+            if plot_choice == 'y':
+                plot_graph(mean_df, graph_dir)
+                
     except KeyboardInterrupt:
         print("\n--- Exit ---")
