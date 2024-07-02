@@ -155,6 +155,10 @@ def process_files_by_date(base_path, date_str):
 
 def select_option(options, option_name):
     # Select option from a list
+    if not options:
+        print(f"No {option_name.lower()}s available.")
+        return None
+
     options = natsorted(options)
     max_width = max(len(option) for option in options) + 2
     format_str = f"{{:<{max_width}}}  |  {{:<{max_width}}}"
@@ -262,6 +266,10 @@ if __name__ == "__main__":
             base_path = "output"  # Base path where the dated directories are located
             log_data = process_files_by_date(base_path, input_date)
 
+            if not log_data:
+                print("No log data found.")
+                sys.exit(1)
+
             # Initialize an empty DataFrame to store all logs
             data = {key: [] for key in ['ite', 'policy_name', 'devices', 'category'] + list(index_to_name.values())}
 
@@ -269,6 +277,9 @@ if __name__ == "__main__":
             print("\n" + "-"*50 + "\n")
             print("Available ITEs:")
             ite_selection = select_option(ite_keys, "ITE")
+
+            if ite_selection is None:
+                sys.exit(1)
 
             if ite_selection == 'ALL':
                 selected_ites = ite_keys
@@ -282,6 +293,9 @@ if __name__ == "__main__":
             print("Available Policies:")
             policy_selection = select_option(policy_keys, "Policies")
 
+            if policy_selection is None:
+                sys.exit(1)
+
             if policy_selection == 'ALL':
                 selected_policies = policy_keys
                 policy_part = 'all_policies'
@@ -293,6 +307,9 @@ if __name__ == "__main__":
             print("\n" + "-"*50 + "\n")
             print("Available Categories:")
             category_selection = select_option(category_keys, "Categories")
+
+            if category_selection is None:
+                sys.exit(1)
 
             if category_selection == 'ALL':
                 selected_categories = category_keys
@@ -348,19 +365,19 @@ if __name__ == "__main__":
                 sorted_file_name = os.path.join(csv_dir, f"{input_date}_logs_sorted_{ite_part}_{policy_part}_{category_part}.csv")
                 sorted_df.to_csv(sorted_file_name, index=False)
                 print(f"Sorted data saved to {sorted_file_name}")
-           
+
             print("-"*50 + "\n")
             # Ask to save the mean logs to CSV
             save_mean_choice = input("Do you want to save the mean logs to CSV? (y/n): ").lower()
             if save_mean_choice == 'y':
                 mean_file_name = os.path.join(csv_dir, f"{input_date}_logs_mean_{ite_part}_{policy_part}_{category_part}.csv")
                 mean_df.to_csv(mean_file_name, index=False)
-            
-            print(f"Mean data saved to {mean_file_name}")
+                print(f"Mean data saved to {mean_file_name}")
+
             # Ask to plot the graph
             plot_choice = input("Do you want to plot a graph from the mean data? (y/n): ").lower()
             if plot_choice == 'y':
                 plot_graph(mean_df, graph_dir)
-                
+
     except KeyboardInterrupt:
         print("\n--- Exit ---")
