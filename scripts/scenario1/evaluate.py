@@ -244,7 +244,7 @@ def plot_graph(mean_df):
             color = colors[i % len(colors)]
             darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
             plt.bar(positions + i * bar_width, total_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
-        elif y_col in ['average_service_time(ALL)_(sec)', 'average_processing_time(ALL)_(sec)']:
+        elif y_col in ['average_service_time(ALL)_(sec)', 'average_processing_time(ALL)_(sec)', 'average_network_delay(ALL)_(sec)']:
             total_values = policy_df['average_service_time(ALL)_(sec)']
             color = colors[i % len(colors)]
             darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
