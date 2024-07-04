@@ -29,6 +29,8 @@ sim_results
 out
 gen
 evaluation
+output
+output_graph
 
 #CSV files
 *.csv
