@@ -59,8 +59,11 @@ public class SampleEdgeOrchestrator extends EdgeOrchestrator {
 			double requiredCapacity = ((CpuUtilizationModel_Custom)task.getUtilizationModelCpu()).predictUtilization(vmArray.get(0).getVmType());
 			double targetVmCapacity = (double) 100 - vmArray.get(0).getCloudletScheduler().getTotalUtilizationOfCpu(CloudSim.clock());
 			
+			// If the required capacity is less than the target VM capacity, process in mobile device
 			if (requiredCapacity <= targetVmCapacity)
 				result = SimSettings.MOBILE_DATACENTER_ID;
+			
+			// If the required capacity is greater than the target VM capacity, offload to edge device
 			else
 				result = SimSettings.GENERIC_EDGE_DEVICE_ID;
 		}

@@ -20,25 +20,49 @@
                 <storage>400000</storage> <!-- 각 데이터센터 호스트의 저장 공간 설정 -->
                 <VMs>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                                        <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
@@ -61,31 +85,55 @@
         </location>
         <hosts>
             <host>
-                <core>16</core>
-                <mips>80000</mips>
-                <ram>16000</ram>
-                <storage>400000</storage>
+                <core>16</core> <!-- 각 데이터센터 호스트의 코어 수 설정 -->
+                <mips>80000</mips> <!-- 각 데이터센터 호스트의 MIPS 설정 -->
+                <ram>16000</ram> <!-- 각 데이터센터 호스트의 RAM 설정 -->
+                <storage>400000</storage> <!-- 각 데이터센터 호스트의 저장 공간 설정 -->
                 <VMs>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                                        <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
@@ -108,31 +156,55 @@
         </location>
         <hosts>
             <host>
-                <core>16</core>
-                <mips>80000</mips>
-                <ram>16000</ram>
-                <storage>400000</storage>
+                <core>16</core> <!-- 각 데이터센터 호스트의 코어 수 설정 -->
+                <mips>80000</mips> <!-- 각 데이터센터 호스트의 MIPS 설정 -->
+                <ram>16000</ram> <!-- 각 데이터센터 호스트의 RAM 설정 -->
+                <storage>400000</storage> <!-- 각 데이터센터 호스트의 저장 공간 설정 -->
                 <VMs>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                                        <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
@@ -155,31 +227,55 @@
         </location>
         <hosts>
             <host>
-                <core>16</core>
-                <mips>80000</mips>
-                <ram>16000</ram>
-                <storage>400000</storage>
+                <core>16</core> <!-- 각 데이터센터 호스트의 코어 수 설정 -->
+                <mips>80000</mips> <!-- 각 데이터센터 호스트의 MIPS 설정 -->
+                <ram>16000</ram> <!-- 각 데이터센터 호스트의 RAM 설정 -->
+                <storage>400000</storage> <!-- 각 데이터센터 호스트의 저장 공간 설정 -->
                 <VMs>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                                        <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
@@ -202,31 +298,55 @@
         </location>
         <hosts>
             <host>
-                <core>16</core>
-                <mips>80000</mips>
-                <ram>16000</ram>
-                <storage>400000</storage>
+                <core>16</core> <!-- 각 데이터센터 호스트의 코어 수 설정 -->
+                <mips>80000</mips> <!-- 각 데이터센터 호스트의 MIPS 설정 -->
+                <ram>16000</ram> <!-- 각 데이터센터 호스트의 RAM 설정 -->
+                <storage>400000</storage> <!-- 각 데이터센터 호스트의 저장 공간 설정 -->
                 <VMs>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                                        <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
@@ -249,31 +369,55 @@
         </location>
         <hosts>
             <host>
-                <core>16</core>
-                <mips>80000</mips>
-                <ram>16000</ram>
-                <storage>400000</storage>
+                <core>16</core> <!-- 각 데이터센터 호스트의 코어 수 설정 -->
+                <mips>80000</mips> <!-- 각 데이터센터 호스트의 MIPS 설정 -->
+                <ram>16000</ram> <!-- 각 데이터센터 호스트의 RAM 설정 -->
+                <storage>400000</storage> <!-- 각 데이터센터 호스트의 저장 공간 설정 -->
                 <VMs>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                                        <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
@@ -294,33 +438,57 @@
             <wlan_id>6</wlan_id>
             <attractiveness>2</attractiveness>
         </location>
-        <hosts>
+       <hosts>
             <host>
-                <core>16</core>
-                <mips>80000</mips>
-                <ram>16000</ram>
-                <storage>400000</storage>
+                <core>16</core> <!-- 각 데이터센터 호스트의 코어 수 설정 -->
+                <mips>80000</mips> <!-- 각 데이터센터 호스트의 MIPS 설정 -->
+                <ram>16000</ram> <!-- 각 데이터센터 호스트의 RAM 설정 -->
+                <storage>400000</storage> <!-- 각 데이터센터 호스트의 저장 공간 설정 -->
                 <VMs>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                                        <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
@@ -343,31 +511,55 @@
         </location>
         <hosts>
             <host>
-                <core>16</core>
-                <mips>80000</mips>
-                <ram>16000</ram>
-                <storage>400000</storage>
+                <core>16</core> <!-- 각 데이터센터 호스트의 코어 수 설정 -->
+                <mips>80000</mips> <!-- 각 데이터센터 호스트의 MIPS 설정 -->
+                <ram>16000</ram> <!-- 각 데이터센터 호스트의 RAM 설정 -->
+                <storage>400000</storage> <!-- 각 데이터센터 호스트의 저장 공간 설정 -->
                 <VMs>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                                        <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
@@ -388,33 +580,57 @@
             <wlan_id>8</wlan_id>
             <attractiveness>2</attractiveness>
         </location>
-        <hosts>
+       <hosts>
             <host>
-                <core>16</core>
-                <mips>80000</mips>
-                <ram>16000</ram>
-                <storage>400000</storage>
+                <core>16</core> <!-- 각 데이터센터 호스트의 코어 수 설정 -->
+                <mips>80000</mips> <!-- 각 데이터센터 호스트의 MIPS 설정 -->
+                <ram>16000</ram> <!-- 각 데이터센터 호스트의 RAM 설정 -->
+                <storage>400000</storage> <!-- 각 데이터센터 호스트의 저장 공간 설정 -->
                 <VMs>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                                        <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
@@ -435,33 +651,57 @@
             <wlan_id>9</wlan_id>
             <attractiveness>2</attractiveness>
         </location>
-        <hosts>
+       <hosts>
             <host>
-                <core>16</core>
-                <mips>80000</mips>
-                <ram>16000</ram>
-                <storage>400000</storage>
+                <core>16</core> <!-- 각 데이터센터 호스트의 코어 수 설정 -->
+                <mips>80000</mips> <!-- 각 데이터센터 호스트의 MIPS 설정 -->
+                <ram>16000</ram> <!-- 각 데이터센터 호스트의 RAM 설정 -->
+                <storage>400000</storage> <!-- 각 데이터센터 호스트의 저장 공간 설정 -->
                 <VMs>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
                     </VM>
                     <VM vmm="Xen">
-                        <core>4</core>
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                                        <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
+                        <mips>10000</mips>
+                        <ram>2000</ram>
+                        <storage>50000</storage>
+                    </VM>
+                    <VM vmm="Xen">
+                        <core>2</core>
                         <mips>10000</mips>
                         <ram>2000</ram>
                         <storage>50000</storage>
