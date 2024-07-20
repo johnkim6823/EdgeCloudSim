@@ -1,4 +1,4 @@
-index_to_name = {
+all_apps_generic = {
     0: 'num_of_completed_tasks(ALL)',
     1: 'num_of_failed_tasks(ALL)',
     2: 'num_of_uncompleted_tasks(ALL)',

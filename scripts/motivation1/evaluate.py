@@ -11,7 +11,7 @@ import matplotlib.colors as mcolors
 
 # Add parent directory to the system path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from index_mapping import index_to_name
+from index_mapping import all_apps_generic
 
 
 def create_evaluation_folder():
@@ -201,39 +201,71 @@ def print_log_line(line, data, ite, policy_name, devices, category):
     data['category'].append(category)
     index = 0
     for item in items:
-        name = index_to_name.get(index)
+        name = all_apps_generic.get(index)
         data[name].append(item)
         index += 1
 
 
-def plot_graph(mean_df):
-    # Select x and y values for the graph
-    columns = mean_df.columns.tolist()
-    max_width = max(len(column) for column in columns) + 2
-    format_str = f"{{:<{max_width}}}  |  {{:<{max_width}}}"
+def plot_graph(mean_df, auto=False):
+    # Define columns for automatic plotting
+    auto_plot_columns = [
+        'num_of_completed_tasks(ALL)',
+        'num_of_failed_tasks(ALL)',
+        'num_of_uncompleted_tasks(ALL)',
+        'num_of_failed_tasks_due_network',
+        'average_processing_time(ALL)_(sec)',
+        'average_network_delay(ALL)_(sec)',
+        'num_of_failed_tasks_due_vm_capacity(ALL)',
+        'num_of_failed_tasks_due_mobility',
+        'num_of_completed_tasks(Edge)',
+        'num_of_failed_tasks(Edge)',
+        'num_of_uncompleted_tasks(Edge)',
+        'average_processing_time(Edge)_(sec)',
+        'average_server_utilization(Edge)_(%)',
+        'num_of_failed_tasks_due_vm_capacity(Edge)',
+        'num_of_completed_tasks(Mobile)',
+        'num_of_failed_tasks(Mobile)',
+        'num_of_uncompleted_tasks(Mobile)',
+        'average_service_time(Mobile)_(sec)',
+        'average_processing_time(Mobile)_(sec)',
+        'average_server_utilization(Mobile)_(%)',
+        'num_of_failed_tasks_due_vm_capacity(Mobile)'
+    ]
 
-    print("\nSelect the columns for the X and Y axis of the graph:\n")
-    for idx in range(0, len(columns), 2):
-        if idx + 1 < len(columns):
-            print(format_str.format(f"{idx + 1}. {columns[idx]}", f"{idx + 2}. {columns[idx + 1]}"))
-        else:
-            print(f"{idx + 1}. {columns[idx]}")
+    if not auto:
+        # Select x and y values for the graph
+        columns = mean_df.columns.tolist()
+        max_width = max(len(column) for column in columns) + 2
+        format_str = f"{{:<{max_width}}}  |  {{:<{max_width}}}"
 
-    while True:
-        try:
-            print("\n" + "-"*50)
-            x_selection = int(input("\nSelect column for X axis by number: ")) - 1
-            y_selection = int(input("Select column for Y axis by number: ")) - 1
-            print("\n" + "-"*50)
-            if 0 <= x_selection < len(columns) and 0 <= y_selection < len(columns):
-                x_col = columns[x_selection]
-                y_col = columns[y_selection]
-                break
+        print("\nSelect the columns for the X and Y axis of the graph:\n")
+        for idx in range(0, len(columns), 2):
+            if idx + 1 < len(columns):
+                print(format_str.format(f"{idx + 1}. {columns[idx]}", f"{idx + 2}. {columns[idx + 1]}"))
             else:
-                print("Invalid selection. Please try again.")
-        except ValueError:
-            print("Please enter a valid number.")
+                print(f"{idx + 1}. {columns[idx]}")
 
+        while True:
+            try:
+                print("\n" + "-"*50)
+                x_selection = int(input("\nSelect column for X axis by number: ")) - 1
+                y_selection = int(input("Select column for Y axis by number: ")) - 1
+                print("\n" + "-"*50)
+                if 0 <= x_selection < len(columns) and 0 <= y_selection < len(columns):
+                    x_col = columns[x_selection]
+                    y_col = columns[y_selection]
+                    break
+                else:
+                    print("Invalid selection. Please try again.")
+            except ValueError:
+                print("Please enter a valid number.")
+    else:
+        x_col = 'devices'
+        for y_col in auto_plot_columns:
+            create_and_save_plot(mean_df, x_col, y_col)
+
+
+def create_and_save_plot(mean_df, x_col, y_col):
     # Ensure x_col is converted to integer
     mean_df[x_col] = mean_df[x_col].astype(int)
 
@@ -242,7 +274,7 @@ def plot_graph(mean_df):
     hatches = ['/', '\\', '|', '-', '+', 'x', 'o', 'O', '.', '*']
 
     # Plot the bar graph for each policy_name
-    plt.figure(figsize=(18, 10))  # Increase figure size for better readability
+    plt.figure(figsize=(10, 6), dpi=300)  # Adjusted figure size and DPI for better readability in papers
     policies = mean_df['policy_name'].unique()
     bar_width = 0.15  # Width of the bars
     positions = np.arange(len(mean_df[x_col].unique()))
@@ -318,15 +350,25 @@ def plot_graph(mean_df):
     # Adjust layout for better readability
     plt.tight_layout()
 
+    # Determine the folder to save the graph based on the y_col
+    if 'ALL' in y_col:
+        folder = 'ALL'
+    elif 'Edge' in y_col:
+        folder = 'EDGE'
+    elif 'Mobile' in y_col:
+        folder = 'MOBILE'
+    else:
+        folder = 'OTHERS'
+
     # Save the graph
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    output_graph_dir = os.path.join(script_dir, 'output_graph', input_date)
+    output_graph_dir = os.path.join(script_dir, 'output_graph', input_date, folder)
     os.makedirs(output_graph_dir, exist_ok=True)
     graph_file_name = os.path.join(output_graph_dir, f"{x_col}_per_{y_col}.png")
-    plt.savefig(graph_file_name)
+    plt.savefig(graph_file_name, bbox_inches='tight')  # Use bbox_inches='tight' for better layout
+    plt.close()  # Close the figure to free memory
     print(f"Graph saved to {graph_file_name}")
     print("\n" + "-"*50 + "\n")
-    plt.show()
 
 
 if __name__ == "__main__":
@@ -340,7 +382,7 @@ if __name__ == "__main__":
             log_data = process_files_by_date(base_path, input_date)
 
             # Initialize an empty DataFrame to store all logs
-            data = {key: [] for key in ['ite', 'policy_name', 'devices', 'category'] + list(index_to_name.values())}
+            data = {key: [] for key in ['ite', 'policy_name', 'devices', 'category'] + list(all_apps_generic.values())}
 
             ite_keys = natsorted(list(log_data.keys()))
             print("\n" + "-"*50 + "\n")
@@ -393,7 +435,7 @@ if __name__ == "__main__":
             df = pd.DataFrame(data)
 
             # Convert appropriate columns to numeric types
-            numeric_cols = list(index_to_name.values()) + ["devices"]
+            numeric_cols = list(all_apps_generic.values()) + ["devices"]
             df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
 
             # Sort the DataFrame by 'policy_name' and 'devices'
@@ -408,34 +450,34 @@ if __name__ == "__main__":
             csv_dir = os.path.join(base_output_dir, 'csv')
             os.makedirs(csv_dir, exist_ok=True)
 
-            # Ask to save the logs to CSV
-            print("-" * 50 + "\n")
-            save_choice = input("Do you want to save the logs to CSV? (y/n): ").lower()
-            if save_choice == 'y':
-                file_name = os.path.join(csv_dir, f"{input_date}_logs_{ite_part}_{policy_part}_{category_part}.csv")
-                df.to_csv(file_name, index=False)
-                print(f"Data saved to {file_name}")
+            # Save the logs to CSV
+            print("-"*50)
+            file_name = os.path.join(csv_dir, f"{input_date}_logs_{ite_part}_{policy_part}_{category_part}.csv")
+            df.to_csv(file_name, index=False)
+            print(f"Data saved to {file_name}")
 
-            print("-" * 50 + "\n")
-            # Ask to save the sorted logs to CSV
-            save_sorted_choice = input("Do you want to save the sorted logs to CSV? (y/n): ").lower()
-            if save_sorted_choice == 'y':
-                sorted_file_name = os.path.join(csv_dir, f"{input_date}_logs_sorted_{ite_part}_{policy_part}_{category_part}.csv")
-                sorted_df.to_csv(sorted_file_name, index=False)
-                print(f"Sorted data saved to {sorted_file_name}")
+            # Save the sorted logs to CSV
+            sorted_file_name = os.path.join(csv_dir, f"{input_date}_logs_sorted_{ite_part}_{policy_part}_{category_part}.csv")
+            sorted_df.to_csv(sorted_file_name, index=False)
+            print(f"Sorted data saved to {sorted_file_name}")
 
-            print("-" * 50 + "\n")
-            # Ask to save the mean logs to CSV
-            save_mean_choice = input("Do you want to save the mean logs to CSV? (y/n): ").lower()
-            if save_mean_choice == 'y':
-                mean_file_name = os.path.join(csv_dir, f"{input_date}_logs_mean_{ite_part}_{policy_part}_{category_part}.csv")
-                mean_df.to_csv(mean_file_name, index=False)
-
+            # Save the mean logs to CSV
+            mean_file_name = os.path.join(csv_dir, f"{input_date}_logs_mean_{ite_part}_{policy_part}_{category_part}.csv")
+            mean_df.to_csv(mean_file_name, index=False)
             print(f"Mean data saved to {mean_file_name}")
+
             # Ask to plot the graph
-            plot_choice = input("Do you want to plot a graph from the mean data? (y/n): ").lower()
-            if plot_choice == 'y':
-                plot_graph(mean_df)
+            print("-"*50)
+            while True:
+                plot_choice = input("Do you want to plot graphs automatically or manually? (a/m): ").lower()
+                if plot_choice == 'a':
+                    plot_graph(mean_df, auto=True)
+                    break
+                elif plot_choice == 'm':
+                    plot_graph(mean_df, auto=False)
+                    break
+                else:
+                    print("Invalid choice. Please enter 'a' for automatic or 'm' for manual.")
 
     except KeyboardInterrupt:
         print("\n--- Exit ---")

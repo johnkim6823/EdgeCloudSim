@@ -8,10 +8,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+
 # Add parent directory to the system path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from index_mapping import index_to_name
-#-----------------------------------------------------------------------------#
+from index_mapping import all_apps_generic
 
 
 def create_evaluation_folder():
@@ -20,11 +20,13 @@ def create_evaluation_folder():
     os.makedirs(evaluation_dir, exist_ok=True)
     return evaluation_dir
 
+
 def remove_and_create_date_folder(date_dir):
     # Remove existing date folder and create a new one
     if os.path.exists(date_dir):
         shutil.rmtree(date_dir)
     os.makedirs(date_dir, exist_ok=True)
+
 
 def extract_and_categorize_tar(file_path, output_dir):
     # Extract tar file and categorize logs
@@ -46,6 +48,7 @@ def extract_and_categorize_tar(file_path, output_dir):
     except Exception as e:
         print(f"Error extracting tar file {file_path}: {e}")
 
+
 def copy_and_extract_files(base_dir, date_dir):
     # Copy and extract files from base directory to date directory
     ite_dirs = []
@@ -64,6 +67,7 @@ def copy_and_extract_files(base_dir, date_dir):
 
     return ite_dirs
 
+
 def remove_nested_ite_folders(ite_dirs):
     # Remove nested ITE folders if any
     for ite_dir in ite_dirs:
@@ -71,11 +75,13 @@ def remove_nested_ite_folders(ite_dirs):
         if os.path.exists(nested_ite_dir):
             shutil.rmtree(nested_ite_dir)
 
+
 def remove_progress_folder(date_dir):
     # Remove progress folder if exists
     progress_dir = os.path.join(date_dir, 'progress')
     if os.path.exists(progress_dir):
         shutil.rmtree(progress_dir)
+
 
 def convert_logs_to_single_line(log_file_path):
     # Convert multi-line log files to single line
@@ -88,6 +94,7 @@ def convert_logs_to_single_line(log_file_path):
                 lf.write(single_line)
     except Exception as e:
         print(f"Error converting log file {log_file_path} to single line: {e}")
+
 
 def read_logs(date_evaluation_dir):
     # Read logs from the date evaluation directory
@@ -125,15 +132,16 @@ def read_logs(date_evaluation_dir):
     total_ites = len(log_data)
     total_unique_policies = len(unique_policies)
     total_unique_categories = len(unique_categories)
-    
+
     print("\n--- Log Reading Finished ---")
     print(f"Total ITEs processed: {total_ites}")
     print(f"Unique Policies processed: {total_unique_policies}")
     print(f"Unique Categories processed: {total_unique_categories}")
     print(f"Total log files read: {total_logs}")
     print("\n" + "-"*50 + "\n")
-    
+
     return log_data
+
 
 def process_files_by_date(base_path, date_str):
     # Process files by date
@@ -143,7 +151,7 @@ def process_files_by_date(base_path, date_str):
         base_dir = os.path.join(base_path, date_dir_name, 'default_config')
         evaluation_dir = create_evaluation_folder()
         date_evaluation_dir = os.path.join(evaluation_dir, date_dir_name)
-        
+
         remove_and_create_date_folder(date_evaluation_dir)
         ite_dirs = copy_and_extract_files(base_dir, date_evaluation_dir)
         remove_nested_ite_folders(ite_dirs)
@@ -157,12 +165,13 @@ def process_files_by_date(base_path, date_str):
     except Exception as e:
         print(f"An error occurred: {e}")
 
+
 def select_option(options, option_name):
     # Select option from a list
     options = natsorted(options)
     max_width = max(len(option) for option in options) + 2
     format_str = f"{{:<{max_width}}}  |  {{:<{max_width}}}"
-    
+
     print(f"\nAvailable {option_name}s:\n")
     print(f"0. Process all {option_name.lower()}s")
     for idx in range(0, len(options), 2):
@@ -182,6 +191,7 @@ def select_option(options, option_name):
         except ValueError:
             print(f"Please enter a valid number for {option_name}.")
 
+
 def print_log_line(line, data, ite, policy_name, devices, category):
     # Print and collect log lines into the data dictionary
     items = line.split(';')
@@ -191,47 +201,80 @@ def print_log_line(line, data, ite, policy_name, devices, category):
     data['category'].append(category)
     index = 0
     for item in items:
-        name = index_to_name.get(index)
+        name = all_apps_generic.get(index)
         data[name].append(item)
         index += 1
 
-def plot_graph(mean_df):
-    # Select x and y values for the graph
-    columns = mean_df.columns.tolist()
-    max_width = max(len(column) for column in columns) + 2
-    format_str = f"{{:<{max_width}}}  |  {{:<{max_width}}}"
-    
-    print("\nSelect the columns for the X and Y axis of the graph:\n")
-    for idx in range(0, len(columns), 2):
-        if idx + 1 < len(columns):
-            print(format_str.format(f"{idx + 1}. {columns[idx]}", f"{idx + 2}. {columns[idx + 1]}"))
-        else:
-            print(f"{idx + 1}. {columns[idx]}")
 
-    while True:
-        try:
-            print("\n" + "-"*50)
-            x_selection = int(input("\nSelect column for X axis by number: ")) - 1
-            y_selection = int(input("Select column for Y axis by number: ")) - 1
-            print("\n" + "-"*50)
-            if 0 <= x_selection < len(columns) and 0 <= y_selection < len(columns):
-                x_col = columns[x_selection]
-                y_col = columns[y_selection]
-                break
+def plot_graph(mean_df, auto=False):
+    # Define columns for automatic plotting
+    auto_plot_columns = [
+        'num_of_completed_tasks(ALL)',
+        'num_of_failed_tasks(ALL)',
+        'num_of_uncompleted_tasks(ALL)',
+        'num_of_failed_tasks_due_network',
+        'average_processing_time(ALL)_(sec)',
+        'average_network_delay(ALL)_(sec)',
+        'num_of_failed_tasks_due_vm_capacity(ALL)',
+        'num_of_failed_tasks_due_mobility',
+        'num_of_completed_tasks(Edge)',
+        'num_of_failed_tasks(Edge)',
+        'num_of_uncompleted_tasks(Edge)',
+        'average_processing_time(Edge)_(sec)',
+        'average_server_utilization(Edge)_(%)',
+        'num_of_failed_tasks_due_vm_capacity(Edge)',
+        'num_of_completed_tasks(Mobile)',
+        'num_of_failed_tasks(Mobile)',
+        'num_of_uncompleted_tasks(Mobile)',
+        'average_service_time(Mobile)_(sec)',
+        'average_processing_time(Mobile)_(sec)',
+        'average_server_utilization(Mobile)_(%)',
+        'num_of_failed_tasks_due_vm_capacity(Mobile)'
+    ]
+
+    if not auto:
+        # Select x and y values for the graph
+        columns = mean_df.columns.tolist()
+        max_width = max(len(column) for column in columns) + 2
+        format_str = f"{{:<{max_width}}}  |  {{:<{max_width}}}"
+
+        print("\nSelect the columns for the X and Y axis of the graph:\n")
+        for idx in range(0, len(columns), 2):
+            if idx + 1 < len(columns):
+                print(format_str.format(f"{idx + 1}. {columns[idx]}", f"{idx + 2}. {columns[idx + 1]}"))
             else:
-                print("Invalid selection. Please try again.")
-        except ValueError:
-            print("Please enter a valid number.")
-    
+                print(f"{idx + 1}. {columns[idx]}")
+
+        while True:
+            try:
+                print("\n" + "-"*50)
+                x_selection = int(input("\nSelect column for X axis by number: ")) - 1
+                y_selection = int(input("Select column for Y axis by number: ")) - 1
+                print("\n" + "-"*50)
+                if 0 <= x_selection < len(columns) and 0 <= y_selection < len(columns):
+                    x_col = columns[x_selection]
+                    y_col = columns[y_selection]
+                    break
+                else:
+                    print("Invalid selection. Please try again.")
+            except ValueError:
+                print("Please enter a valid number.")
+    else:
+        x_col = 'devices'
+        for y_col in auto_plot_columns:
+            create_and_save_plot(mean_df, x_col, y_col)
+
+
+def create_and_save_plot(mean_df, x_col, y_col):
     # Ensure x_col is converted to integer
     mean_df[x_col] = mean_df[x_col].astype(int)
-    
+
     # Define colors and hatching patterns
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
     hatches = ['/', '\\', '|', '-', '+', 'x', 'o', 'O', '.', '*']
-    
+
     # Plot the bar graph for each policy_name
-    plt.figure(figsize=(18, 10))  # Increase figure size for better readability
+    plt.figure(figsize=(10, 6), dpi=300)  # Adjusted figure size and DPI for better readability in papers
     policies = mean_df['policy_name'].unique()
     bar_width = 0.15  # Width of the bars
     positions = np.arange(len(mean_df[x_col].unique()))
@@ -239,6 +282,7 @@ def plot_graph(mean_df):
     for i, policy in enumerate(policies):
         policy_df = mean_df[mean_df['policy_name'] == policy]
 
+        # Plot for ALL
         if y_col in ['num_of_completed_tasks(ALL)', 'num_of_failed_tasks(ALL)', 'num_of_uncompleted_tasks(ALL)']:
             total_tasks = policy_df[['num_of_completed_tasks(ALL)', 'num_of_failed_tasks(ALL)', 'num_of_uncompleted_tasks(ALL)']].sum(axis=1)
             color = colors[i % len(colors)]
@@ -254,33 +298,78 @@ def plot_graph(mean_df):
             color = colors[i % len(colors)]
             darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
             plt.bar(positions + i * bar_width, total_failed_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
-        
+
+        # Plot for Edge
+        elif y_col in ['num_of_completed_tasks(Edge)', 'num_of_failed_tasks(Edge)', 'num_of_uncompleted_tasks(Edge)']:
+            total_tasks = policy_df[['num_of_completed_tasks(Edge)', 'num_of_failed_tasks(Edge)', 'num_of_uncompleted_tasks(Edge)']].sum(axis=1)
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
+        elif y_col in ['average_service_time(Edge)_(sec)', 'average_processing_time(Edge)_(sec)']:
+            total_values = policy_df['average_service_time(Edge)_(sec)']
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_values, bar_width, color=darker_color, alpha=0.5)  # No label for total
+        elif y_col in ['num_of_failed_tasks_due_vm_capacity(Edge)']:
+            total_failed_tasks = policy_df[['num_of_failed_tasks_due_vm_capacity(Edge)']].sum(axis=1)
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_failed_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
+
+        # Plot for Mobile
+        elif y_col in ['num_of_completed_tasks(Mobile)', 'num_of_failed_tasks(Mobile)', 'num_of_uncompleted_tasks(Mobile)']:
+            total_tasks = policy_df[['num_of_completed_tasks(Mobile)', 'num_of_failed_tasks(Mobile)', 'num_of_uncompleted_tasks(Mobile)']].sum(axis=1)
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
+        elif y_col in ['average_service_time(Mobile)_(sec)', 'average_processing_time(Mobile)_(sec)']:
+            total_values = policy_df['average_service_time(Mobile)_(sec)']
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_values, bar_width, color=darker_color, alpha=0.5)  # No label for total
+        elif y_col in ['num_of_failed_tasks_due_vm_capacity(Mobile)']:
+            total_failed_tasks = policy_df[['num_of_failed_tasks_due_vm_capacity(Mobile)']].sum(axis=1)
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_failed_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
+
         plt.bar(positions + i * bar_width, policy_df[y_col], bar_width, label=policy, color=colors[i % len(colors)], hatch=hatches[i % len(hatches)])
-    
+
     # Set the positions and labels of the x ticks
     x_positions = positions + bar_width * (len(policies) - 1) / 2
     plt.xticks(x_positions, mean_df[x_col].unique().astype(int), ha='center', fontsize=10)
     plt.yticks(fontsize=10)
-    
+
     plt.xlabel(x_col, labelpad=10, fontsize=12)
     plt.ylabel(y_col, labelpad=10, fontsize=12)
     plt.grid(axis='y', linestyle='--', alpha=0.7)
     plt.grid(False, axis='x')
     plt.title(f'{y_col} per {x_col}', fontsize=16, fontweight='bold', pad=20, loc='center')
     plt.legend()
-    
+
     # Adjust layout for better readability
     plt.tight_layout()
-    
+
+    # Determine the folder to save the graph based on the y_col
+    if 'ALL' in y_col:
+        folder = 'ALL'
+    elif 'Edge' in y_col:
+        folder = 'EDGE'
+    elif 'Mobile' in y_col:
+        folder = 'MOBILE'
+    else:
+        folder = 'OTHERS'
+
     # Save the graph
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    output_graph_dir = os.path.join(script_dir, 'output_graph', input_date)
+    output_graph_dir = os.path.join(script_dir, 'output_graph', input_date, folder)
     os.makedirs(output_graph_dir, exist_ok=True)
     graph_file_name = os.path.join(output_graph_dir, f"{x_col}_per_{y_col}.png")
-    plt.savefig(graph_file_name)
+    plt.savefig(graph_file_name, bbox_inches='tight')  # Use bbox_inches='tight' for better layout
+    plt.close()  # Close the figure to free memory
     print(f"Graph saved to {graph_file_name}")
     print("\n" + "-"*50 + "\n")
-    plt.show()
+
 
 if __name__ == "__main__":
     try:
@@ -293,7 +382,7 @@ if __name__ == "__main__":
             log_data = process_files_by_date(base_path, input_date)
 
             # Initialize an empty DataFrame to store all logs
-            data = {key: [] for key in ['ite', 'policy_name', 'devices', 'category'] + list(index_to_name.values())}
+            data = {key: [] for key in ['ite', 'policy_name', 'devices', 'category'] + list(all_apps_generic.values())}
 
             ite_keys = natsorted(list(log_data.keys()))
             print("\n" + "-"*50 + "\n")
@@ -346,7 +435,7 @@ if __name__ == "__main__":
             df = pd.DataFrame(data)
 
             # Convert appropriate columns to numeric types
-            numeric_cols = list(index_to_name.values()) + ["devices"]
+            numeric_cols = list(all_apps_generic.values()) + ["devices"]
             df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
 
             # Sort the DataFrame by 'policy_name' and 'devices'
@@ -361,34 +450,34 @@ if __name__ == "__main__":
             csv_dir = os.path.join(base_output_dir, 'csv')
             os.makedirs(csv_dir, exist_ok=True)
 
-            # Ask to save the logs to CSV
-            print("-"*50 + "\n")
-            save_choice = input("Do you want to save the logs to CSV? (y/n): ").lower()
-            if save_choice == 'y':
-                file_name = os.path.join(csv_dir, f"{input_date}_logs_{ite_part}_{policy_part}_{category_part}.csv")
-                df.to_csv(file_name, index=False)
-                print(f"Data saved to {file_name}")
+            # Save the logs to CSV
+            print("-"*50)
+            file_name = os.path.join(csv_dir, f"{input_date}_logs_{ite_part}_{policy_part}_{category_part}.csv")
+            df.to_csv(file_name, index=False)
+            print(f"Data saved to {file_name}")
 
-            print("-"*50 + "\n")
-            # Ask to save the sorted logs to CSV
-            save_sorted_choice = input("Do you want to save the sorted logs to CSV? (y/n): ").lower()
-            if save_sorted_choice == 'y':
-                sorted_file_name = os.path.join(csv_dir, f"{input_date}_logs_sorted_{ite_part}_{policy_part}_{category_part}.csv")
-                sorted_df.to_csv(sorted_file_name, index=False)
-                print(f"Sorted data saved to {sorted_file_name}")
-           
-            print("-"*50 + "\n")
-            # Ask to save the mean logs to CSV
-            save_mean_choice = input("Do you want to save the mean logs to CSV? (y/n): ").lower()
-            if save_mean_choice == 'y':
-                mean_file_name = os.path.join(csv_dir, f"{input_date}_logs_mean_{ite_part}_{policy_part}_{category_part}.csv")
-                mean_df.to_csv(mean_file_name, index=False)
-            
+            # Save the sorted logs to CSV
+            sorted_file_name = os.path.join(csv_dir, f"{input_date}_logs_sorted_{ite_part}_{policy_part}_{category_part}.csv")
+            sorted_df.to_csv(sorted_file_name, index=False)
+            print(f"Sorted data saved to {sorted_file_name}")
+
+            # Save the mean logs to CSV
+            mean_file_name = os.path.join(csv_dir, f"{input_date}_logs_mean_{ite_part}_{policy_part}_{category_part}.csv")
+            mean_df.to_csv(mean_file_name, index=False)
             print(f"Mean data saved to {mean_file_name}")
+
             # Ask to plot the graph
-            plot_choice = input("Do you want to plot a graph from the mean data? (y/n): ").lower()
-            if plot_choice == 'y':
-                plot_graph(mean_df)
-                
+            print("-"*50)
+            while True:
+                plot_choice = input("Do you want to plot graphs automatically or manually? (a/m): ").lower()
+                if plot_choice == 'a':
+                    plot_graph(mean_df, auto=True)
+                    break
+                elif plot_choice == 'm':
+                    plot_graph(mean_df, auto=False)
+                    break
+                else:
+                    print("Invalid choice. Please enter 'a' for automatic or 'm' for manual.")
+
     except KeyboardInterrupt:
         print("\n--- Exit ---")
