@@ -156,17 +156,37 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
     <th colspan="2">WORST-FIT</th>
   </tr>
   <tr>
-    <td>SINGLE-TIER</td>
-    <td>ONLY ES</td>
+    <td colspan="2">SINGLE-TIER: ES</td>
+  </tr>
+    <tr>
+    <td colspan="2">TWO-TIER: ES+CS</td>
+  </tr>
+    <tr>
+    <td colspan="2">STWO-TIER-WITH_EO: ES+CS+Orchestrator</td>
   </tr>
 </table>
+---
 
 ### sample_app2
-Testing various policies in TWO_TIER_WITH_EO scenario
-#### Policies
-1. NETWORK_BASED: If `WAN bandwidth` > `6 Mbps`, offload task to cloud server. Otherwise, offload task to edge servers
-2. UTILIZATION_BASED: If average `edge servers CPU utilization` > `80`, offload task to cloud server. Otherwise, offload task to edge servers
-3. HYBRID:  If `WAN bandwidth` > `6 Mbps` && average `edge servers CPU utilization` > `80`, offload task to cloud server. Otherwise, offload task to edge servers
+**Testing various policies in TWO_TIER_WITH_EO scenario**
+<table>
+  <tr>
+    <th colspan="2">TWO-TIER-WITH-EO</th>
+  </tr>
+  <tr>
+    <td>NETWORK-BASED</td>
+    <td>If `WAN bandwidth` > `6 Mbps`, offload task to CS. Otherwise, offload task to ES</td>
+  </tr>
+    <tr>
+    <td>UTILIZATION-BASED</td>
+    <td>If average `edge servers CPU utilization` > `80`, offload task to CS. Otherwise, offload task to ES</td>
+  </tr>
+  </tr>
+  <tr>
+    <td>HYBRID</td>
+    <td>If `WAN bandwidth` > `6 Mbps` && average `edge servers CPU utilization` > `80`, offload task to CS. Otherwise, offload task to ES</td>
+  </tr>
+</table>  
 
 ### sample_app3
 Testing Task processing scenario with various policies
