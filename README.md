@@ -134,10 +134,9 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
 **[4]** C. Sonmez, A. Ozgovde and C. Ersoy, "[Fuzzy Workload Orchestration for Edge Computing](https://ieeexplore.ieee.org/abstract/document/8651335/)," in *IEEE Transactions on Network and Service Management*, vol. 16, no. 2, pp. 769-782, June 2019.
 
 **[5]** C. Sonmez, A. Ozgovde and C. Ersoy, "[Machine Learning-Based Workload Orchestrator for Vehicular Edge Computing](https://ieeexplore.ieee.org/abstract/document/9208723/)," in *IEEE Transactions on Intelligent Transportation Systems*, doi: 10.1109/TITS.2020.3024233.
-# meta-edgecloudsim
 
-## To make new scenario
-### Change following files
+# To make new scenario
+## Change following files
 **scripts/{scenario_name}** 
   1. compile.sh
   2. runner.sh
