@@ -147,8 +147,8 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
   2. In MainApp.java, change SCENARIO_NAME into corresponding scenario_name
 
 
-## SAMPLE SCENARIOS
-### sample_app1
+# SAMPLE SCENARIOS
+## sample_app1
 **Testing WORST-FIT policy with various scenarios**
 <table>
   <tr>
@@ -167,9 +167,11 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
     <td>ES+CS+orchestrator</td>
   </tr>
 </table>
----
+* MD는 관여 X
 
-### sample_app2
+---------------------------------------------------------------------------------
+
+## sample_app2
 **Testing various policies in TWO_TIER_WITH_EO scenario**
 <table>
   <tr>
@@ -189,8 +191,11 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
     <td>If `WAN bandwidth` > `6 Mbps` && average `edge servers CPU utilization` > `80`, offload task to CS. <br> Otherwise, offload task to ES</td>
   </tr>
 </table>  
+* MD는 관여 X
 
-### sample_app3
+---------------------------------------------------------------------------------
+
+## sample_app3
 **Testing Task processing scenario with various policies**
 <table>
   <tr>
@@ -211,10 +216,15 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
     </td>
   </tr>
 </table>
+* CS는 관여 X
 
-### sample_app4
+---------------------------------------------------------------------------------
+
+## sample_app4
 **sample_app2 + Policy 추가됨**
 `FUZZY_BASED_COMPETITOR + HYBRID` 추가됨
+
+---------------------------------------------------------------------------------
 
 ### sample_app5
 **AI based policies**
@@ -224,8 +234,11 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
 3. GAME_THEORY
 4. MAB,AI_BASED
 
-### scenario1
-**다양한 VM 할당 정책 테스트 오프로딩에는 ES만 사용됨**
+---------------------------------------------------------------------------------
+
+## scenario1
+**다양한 VM 할당 정책**
+**테스트 오프로딩에는 ES만 사용됨**
 <table>
   <tr>
     <th>목록</th>
@@ -253,7 +266,9 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
   </tr>
 </table>
 
-### scenario2
+---------------------------------------------------------------------------------
+
+## scenario2
 **작업 오프로딩의 세분성을 결정하는 다양한 접근 방식에 대한 성능 평가**
 <table>
   <tr>
@@ -274,7 +289,9 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
   </tr>
 </table>
 
-### scenario3
+---------------------------------------------------------------------------------
+
+## scenario3
 **Testing Task processing with various offloading policies**
 <table>
   <tr>
