@@ -150,11 +150,16 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
 
 ## SAMPLE SCENARIOS
 ### sample_app1
-Testing NEXT_FIT policy with various scenarios
-#### Scenarios
-1. SINGLE_TIER: MD + ES
-2. TWO_TIER: MD + ES + CS
-3. TWO_TIER_WITH_EO: MD + ES + CS + Edge Orchestrator
+**Testing WORST-FIT policy with various scenarios**
+<table>
+  <tr>
+    <th colspan="2">WORST-FIT</th>
+  </tr>
+  <tr>
+    <td>SINGLE-TIER</td>
+    <td>ONLY ES</td>
+  </tr>
+</table>
 
 ### sample_app2
 Testing various policies in TWO_TIER_WITH_EO scenario
