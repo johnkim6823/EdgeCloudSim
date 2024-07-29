@@ -147,32 +147,65 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
   1. Change all .java file's pakage to corresponding scenario_name
   2. In MainApp.java, change SCENARIO_NAME into corresponding scenario_name
 
+## SAMPLE SCENARIOS
+### sample_app1
+Testing NEXT_FIT policy with various scenarios
+#### Scnarios
+1. SINGLE_TIER: MD + ES
+2. TWO_TIER: MD + ES + CS
+3. TWO_TIER_WITH_EO: MD + ES + CS + Edge Orchestrator
 
-## MOTIVATIONS
-### motivation1
-Testing Offloading Scenario. Mobile to Edge only
+### sample_app2
+Testing various policies in TWO_TIER_WITH_EO scenario
+#### Policies
+1. NETWORK_BASED: If `WAN bandwidth` > `6 Mbps`, offload task to cloud server. Otherwise, offload task to edge servers
+2. UTILIZATION_BASED: If average `edge servers CPU utilization` > `80`, offload task to cloud server. Otherwise, offload task to edge servers
+3. HYBRID:  If `WAN bandwidth` > `6 Mbps` && average `edge servers CPU utilization` > `80`, offload task to cloud server. Otherwise, offload task to edge servers
 
-orchestrator_policies = RANDOM / MOBILE_UTIL_HEURISTIC / EDGE_UTIL_HEURISTIC
-```
-Random: A random ES selected to offload task
-```
-```
-MOBILE_UTIL_HEURISTIC: If average MD CPU utilization less than 75 then, execute task loccally, otherwise offload to edge server.
-```
-```
-EDGE_UTIL_HEURISTIC: if average ES CPU utilization less than 90 then, execute task to edge server, otherwise, exectue task locally.
-```
-### motivation2
-Testing Task Processing Scenario. Only Edge, MD, Hybrid
-```
-only Edge: Task Processing occurs in only ES
-```
-```
-only MD: Task Processing occurs in only MD
-```
-``` 
-HYBRID: ES의 VM CPU 사용량 예측 -> 필요한 CPU 용량 계산
-        현재 VM의 CPU 사용량 가져옴
+### sample_app3
+Testing Task processing scenario with various policies
+#### Policies
+1. only Edge: Task Processing occurs in only ES
+2. only MD: Task Processing occurs in only MD
+3. HYBRID: ES의 VM CPU 사용량 예측 -> 필요한 CPU 용량 계산
+        현재 모바일의 VM의 CPU 사용량 가져옴
         100% - 현재 사용량
-        작업의 요구 용량 < 현재 VM 사용 가능한 용량 -> offloading
-```
+        작업의 요구 용량 > 현재 모바일 vm 사용 가능한 용량 -> ES로 offloading
+
+### sample_app4
+sample_app2 + various policies added.
+#### Policies
+기존 그대로 +
+1. FUZZY_BASED_COMPETITOR
+2. HYBRID
+
+### sample_app5
+AI based policies
+#### Policies
+1. RANDOM
+2. PREDICTIVE
+3. GAME_THEORY
+4. MAB,AI_BASED
+
+### scenario1
+Testing various VM Allocation Policies Only ES is used for Offloading
+#### Policies
+1. RANDOM
+2. WORST
+3. BEST
+4. FIRST
+5. NEXT
+
+### scenario2
+Performance Evaluation of Different Approaches that Decide Granularity of Task Offloading
+#### Policies
+1. RANDOM: Random VM selected
+2. MD_UTILIZATION_HEURISTIC: If average mobile device CPU utilization < 75 execute task locally. Otherwise, offload to edge server
+3. ES_UTILIZATION_HEURISTIC: If average edge server CPU utilization < 90 offload task to edge server. Otherwise, execute task locally
+
+### scenario3
+Testing Task processing with various offloading policies
+#### Policies
+1. RANDOM: Random VM selected
+2. ES_UTILIZATION_HEURISTIC: If average edge servers CPU utilization > 75, offload task to cloud server. Otherwise, offload task to edge servers
+3. NETWORK_UTILIZATION_HEURISTIC: If WAN bandwidth > 5 Mbps, offload task to cloud server. Otherwise, offload task to edge servers
