@@ -147,10 +147,11 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
   1. Change all .java file's pakage to corresponding scenario_name
   2. In MainApp.java, change SCENARIO_NAME into corresponding scenario_name
 
+
 ## SAMPLE SCENARIOS
 ### sample_app1
 Testing NEXT_FIT policy with various scenarios
-#### Scnarios
+#### Scenarios
 1. SINGLE_TIER: MD + ES
 2. TWO_TIER: MD + ES + CS
 3. TWO_TIER_WITH_EO: MD + ES + CS + Edge Orchestrator
