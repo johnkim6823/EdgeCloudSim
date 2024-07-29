@@ -178,16 +178,16 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
   </tr>
   <tr>
     <td>NETWORK-BASED</td>
-    <td>If `WAN bandwidth` > `6 Mbps`, offload task to CS. Otherwise, offload task to ES</td>
+    <td>If `WAN bandwidth` > `6 Mbps`, offload task to CS. <br> Otherwise, offload task to ES</td>
   </tr>
     <tr>
     <td>UTILIZATION-BASED</td>
-    <td>If average `edge servers CPU utilization` > `80`, offload task to CS. Otherwise, offload task to ES</td>
+    <td>If average `edge servers CPU utilization` > `80`, offload task to CS. <br> Otherwise, offload task to ES</td>
   </tr>
   </tr>
   <tr>
     <td>HYBRID</td>
-    <td>If `WAN bandwidth` > `6 Mbps` && average `edge servers CPU utilization` > `80`, offload task to CS. Otherwise, offload task to ES</td>
+    <td>If `WAN bandwidth` > `6 Mbps` && average `edge servers CPU utilization` > `80`, offload task to CS. <br> Otherwise, offload task to ES</td>
   </tr>
 </table>  
 
@@ -205,10 +205,10 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
   <tr>
     <td>HYBRID</td>
     <td>
-      * ES의 VM CPU 사용량 예측 -> 필요한 CPU 용량 계산
-      * 현재 모바일의 VM의 CPU 사용량 가져옴
-      * 100% - 현재 사용량
-      * 작업의 요구 용량 > 현재 모바일 vm 사용 가능한 용량 -> ES로 offloading
+      ES의 VM CPU 사용량 예측 -> 필요한 CPU 용량 계산
+      <br> 현재 모바일의 VM의 CPU 사용량 가져옴
+      <br> 100% - 현재 사용량
+      <br> 작업의 요구 용량 > 현재 모바일 vm 사용 가능한 용량 -> ES로 offloading
     </td>
   </tr>
 </table>
@@ -238,32 +238,61 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
   </tr>
   <tr>
     <td>WORST</td>
-    <td>CPU 사용률이 가장 낮은 VM이 선택됩니다</td>
+    <td>CPU 사용률이 가장 낮은 VM이 선택</td>
   </tr>
   <tr>
     <td>BEST</td>
-    <td>CPU 사용률이 가장 높은 VM이 선택됩니다</td>
+    <td>CPU 사용률이 가장 높은 VM이 선택</td>
   </tr>
   <tr>
     <td>FIRST</td>
-    <td>사용 가능한 첫 번째 VM이 선택됨</td>
+    <td>사용 가능한 첫 번째 VM이 선택</td>
   </tr>
   <tr>
     <td>NEXT</td>
-    <td>호스트를 순서대로 방문하여 가장 적합한 첫 번째 VM이 선택됩니다</td>
+    <td>호스트를 순서대로 방문하여 가장 적합한 첫 번째 VM이 선택</td>
   </tr>
 </table>
 
 ### scenario2
-Performance Evaluation of Different Approaches that Decide Granularity of Task Offloading
-#### Policies
-1. RANDOM: Random VM selected
-2. MD_UTILIZATION_HEURISTIC: If average mobile device CPU utilization < 75 execute task locally. Otherwise, offload to edge server
-3. ES_UTILIZATION_HEURISTIC: If average edge server CPU utilization < 90 offload task to edge server. Otherwise, execute task locally
+**작업 오프로딩의 세분성을 결정하는 다양한 접근 방식에 대한 성능 평가**
+<table>
+  <tr>
+    <th>목록</th>
+    <th>설명</th>
+  </tr>
+  <tr>
+    <td>RANDOM</td>
+    <td>무작위 VM 선택</td>
+  </tr>
+  <tr>
+    <td>MD-UTILIZATION-HEURISTIC</td>
+    <td>평균 모바일 디바이스 CPU 사용률이 75 미만인 경우 local에서 실행. <br> Oterwise ES에 offload.</td>
+  </tr>
+  <tr>
+    <td>EDGE-UTILIZATION-HEURISTIC</td>
+    <td>평균 엣지 서버 CPU 사용률이 90 미만인 경우 ES로 Task offload. <br> Otherwise local process.</td>
+  </tr>
+</table>
 
 ### scenario3
-Testing Task processing with various offloading policies
-#### Policies
-1. RANDOM: Random VM selected
-2. ES_UTILIZATION_HEURISTIC: If average edge servers CPU utilization > 75, offload task to cloud server. Otherwise, offload task to edge servers
-3. NETWORK_UTILIZATION_HEURISTIC: If WAN bandwidth > 5 Mbps, offload task to cloud server. Otherwise, offload task to edge servers
+**Testing Task processing with various offloading policies**
+<table>
+  <tr>
+    <th>목록</th>
+    <th>설명</th>
+  </tr>
+  <tr>
+    <td>RANDOM</td>
+    <td>무작위 VM 선택</td>
+  </tr>
+  <tr>
+    <td>EDGE-UTILIZATION-HEURISTIC</td>
+    <td>ES의 평균 CPU 사용률이 75를 초과하면 작업을 CS로 offload. <br> Oterwise ES에 offload.</td>
+  </tr>
+  <tr>
+    <td>NETWORK-UTILIZATION-HEURISTIC</td>
+    <td>WAN 대역폭이 5Mbps를 초과하면 작업을 CS로 offload. Oterwise ES에 offload.</td>
+  </tr>
+</table>
+
