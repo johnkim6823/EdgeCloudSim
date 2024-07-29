@@ -156,13 +156,16 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
     <th colspan="2">WORST-FIT</th>
   </tr>
   <tr>
-    <td colspan="2">SINGLE-TIER: ES</td>
+    <td>SINGLE-TIER</td>
+    <td>ES</td>
   </tr>
-    <tr>
-    <td colspan="2">TWO-TIER: ES+CS</td>
+  <tr>
+    <td>TWO-TIER</td>
+    <td>ES+CS</td>
   </tr>
-    <tr>
-    <td colspan="2">STWO-TIER-WITH_EO: ES+CS+Orchestrator</td>
+  <tr>
+    <td>TWO-TIER-WITH-EO</td>
+    <td>ES+CS+orchestrator</td>
   </tr>
 </table>
 ---
@@ -189,24 +192,33 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
 </table>  
 
 ### sample_app3
-Testing Task processing scenario with various policies
-#### Policies
-1. only Edge: Task Processing occurs in only ES
-2. only MD: Task Processing occurs in only MD
-3. HYBRID: ES의 VM CPU 사용량 예측 -> 필요한 CPU 용량 계산
-        현재 모바일의 VM의 CPU 사용량 가져옴
-        100% - 현재 사용량
-        작업의 요구 용량 > 현재 모바일 vm 사용 가능한 용량 -> ES로 offloading
+**Testing Task processing scenario with various policies**
+<table>
+  <tr>
+    <td>Only Edge</td>
+    <td>ES에서만 Task Processing</td>
+  </tr>
+  <tr>
+    <td>Only MD</td>
+    <td>MD에서만 Task Processing</td>
+  </tr>
+  <tr>
+    <td>HYBRID</td>
+    <td>
+      * ES의 VM CPU 사용량 예측 -> 필요한 CPU 용량 계산
+      * 현재 모바일의 VM의 CPU 사용량 가져옴
+      * 100% - 현재 사용량
+      * 작업의 요구 용량 > 현재 모바일 vm 사용 가능한 용량 -> ES로 offloading
+    </td>
+  </tr>
+</table>
 
 ### sample_app4
-sample_app2 + various policies added.
-#### Policies
-기존 그대로 +
-1. FUZZY_BASED_COMPETITOR
-2. HYBRID
+**sample_app2 + Policy 추가됨**
+`FUZZY_BASED_COMPETITOR + HYBRID` 추가됨
 
 ### sample_app5
-AI based policies
+**AI based policies**
 #### Policies
 1. RANDOM
 2. PREDICTIVE
@@ -214,13 +226,33 @@ AI based policies
 4. MAB,AI_BASED
 
 ### scenario1
-Testing various VM Allocation Policies Only ES is used for Offloading
-#### Policies
-1. RANDOM
-2. WORST
-3. BEST
-4. FIRST
-5. NEXT
+**다양한 VM 할당 정책 테스트 오프로딩에는 ES만 사용됨**
+<table>
+  <tr>
+    <th>목록</th>
+    <th>설명</th>
+  </tr>
+  <tr>
+    <td>RANDOM</td>
+    <td>무작위 VM이 선택됨</td>
+  </tr>
+  <tr>
+    <td>WORST</td>
+    <td>CPU 사용률이 가장 낮은 VM이 선택됩니다</td>
+  </tr>
+  <tr>
+    <td>BEST</td>
+    <td>CPU 사용률이 가장 높은 VM이 선택됩니다</td>
+  </tr>
+  <tr>
+    <td>FIRST</td>
+    <td>사용 가능한 첫 번째 VM이 선택됨</td>
+  </tr>
+  <tr>
+    <td>NEXT</td>
+    <td>호스트를 순서대로 방문하여 가장 적합한 첫 번째 VM이 선택됩니다</td>
+  </tr>
+</table>
 
 ### scenario2
 Performance Evaluation of Different Approaches that Decide Granularity of Task Offloading
