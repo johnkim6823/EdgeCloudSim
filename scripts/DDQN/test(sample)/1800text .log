@@ -1,0 +1,43 @@
+Scenario started at 30/08/2024 04:27:09
+Scenario: TWO_TIER_WITH_EO - Policy: FUZZY_BASED - #iteration: 10
+Duration: 30.0 min (warm up period: 3.0 min) - #devices: 1800
+Creating tasks...Done, 
+Creating device locations...Done.
+SimManager is starting...Done.
+.........10.........20.........30.........40.........50.........60.........70.........80.........90.........100
+AUGMENTED_REALITY
+# of tasks (Edge/Cloud): 295665(292255/3410)
+# of failed tasks (Edge/Cloud): 7015(6986/29)
+# of completed tasks (Edge/Cloud): 288650(285269/3381)
+---------------------------------------
+HEALTH_APP
+# of tasks (Edge/Cloud): 65447(64568/879)
+# of failed tasks (Edge/Cloud): 1242(1237/5)
+# of completed tasks (Edge/Cloud): 64205(63331/874)
+---------------------------------------
+HEAVY_COMP_APP
+# of tasks (Edge/Cloud): 8890(2678/6212)
+# of failed tasks (Edge/Cloud): 292(89/203)
+# of completed tasks (Edge/Cloud): 8598(2589/6009)
+---------------------------------------
+INFOTAINMENT_APP
+# of tasks (Edge/Cloud): 52145(17807/34338)
+# of failed tasks (Edge/Cloud): 1300(435/865)
+# of completed tasks (Edge/Cloud): 50845(17372/33473)
+---------------------------------------
+# of tasks (Edge/Cloud/Mobile): 422147(377308/44839/0)
+# of failed tasks (Edge/Cloud/Mobile): 9849(8747/1102/0)
+# of completed tasks (Edge/Cloud/Mobile): 412298(368561/43737/0)
+# of uncompleted tasks (Edge/Cloud/Mobile): 879(845/2/32)
+# of failed tasks due to vm capacity (Edge/Cloud/Mobile): 1757(1757/0/0)
+# of failed tasks due to Mobility/WLAN Range/Network(WLAN/MAN/WAN/GSM): 4055/0/4037(243/2967/827/0)
+percentage of failed tasks: 2.333074%
+average service time: 2.398457 seconds. (on Edge: 2.468539, on Cloud: 1.807889, on Mobile: NaN)
+average processing time: 2.086592 seconds. (on Edge: 2.309643, on Cloud: 0.206996, on Mobile: NaN)
+average network delay: 0.311865 seconds. (LAN delay: 0.153068, MAN delay: 0.020859, WAN delay: 1.600894, GSM delay: NaN)
+average server utilization Edge/Cloud/Mobile: 30.618908/2.448328/0.000000
+average cost: 0.0$
+average overhead: 0.0 ns
+average QoE (for all): 0.0%
+average QoE (for executed): 0.0%
+Scenario finished at 30/08/2024 04:49:08. It took 21 Minutes 58 Seconds

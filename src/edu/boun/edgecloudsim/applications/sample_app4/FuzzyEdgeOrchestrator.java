@@ -31,6 +31,7 @@ import edu.boun.edgecloudsim.edge_server.EdgeVM;
 import edu.boun.edgecloudsim.edge_client.CpuUtilizationModel_Custom;
 import edu.boun.edgecloudsim.edge_client.Task;
 import edu.boun.edgecloudsim.utils.SimLogger;
+import edu.boun.edgecloudsim.utils.SimUtils;
 
 public class FuzzyEdgeOrchestrator extends EdgeOrchestrator {
 	public static final double MAX_DATA_SIZE=2500;
@@ -114,7 +115,7 @@ public class FuzzyEdgeOrchestrator extends EdgeOrchestrator {
 				}
 			}
 
-			if(policy.equals("FUZZY_BASED")){
+			if(policy.equals("RSAC")){
 				int bestHostIndex = nearestEdgeHostIndex;
 				double bestHostUtilization = nearestEdgeUtilization;
 				
@@ -168,7 +169,7 @@ public class FuzzyEdgeOrchestrator extends EdgeOrchestrator {
 					result = bestHostIndex;
 				}
 			}
-			else if(policy.equals("FUZZY_COMPETITOR")){
+			else if(policy.equals("FUZZY_BASED")){
 				double utilization = edgeUtilization;
 	        	double cpuSpeed = (double)100 - utilization;
 	        	double videoExecution = SimSettings.getInstance().getTaskLookUpTable()[task.getTaskType()][12];
@@ -218,6 +219,14 @@ public class FuzzyEdgeOrchestrator extends EdgeOrchestrator {
 					result = SimSettings.CLOUD_DATACENTER_ID;
 				else
 					result = SimSettings.GENERIC_EDGE_DEVICE_ID;
+			}
+			else if(policy.equals("RANDOM")){
+				double randomNumber = SimUtils.getRandomDoubleNumber(0, 1);
+				if(randomNumber < 0.5)
+					result = SimSettings.CLOUD_DATACENTER_ID;
+				else
+					result = SimSettings.GENERIC_EDGE_DEVICE_ID;
+
 			}
 			else {
 				SimLogger.printLine("Unknown edge orchestrator policy! Terminating simulation...");
