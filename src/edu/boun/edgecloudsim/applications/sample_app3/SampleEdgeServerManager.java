@@ -10,7 +10,7 @@
  * Copyright (c) 2017, Bogazici University, Istanbul, Turkey
  */
 
-package edu.boun.edgecloudsim.applications.motivation1;
+package edu.boun.edgecloudsim.applications.sample_app3;
 
 import java.util.ArrayList;
 import java.util.LinkedList;

@@ -107,6 +107,19 @@ public class SampleMobileServerManager extends MobileServerManager{
 		return totalUtilization / vmCounter;
 	}
 	
+	public double getAvgHostUtilization(int hostIndex) {
+		double totalUtilization = 0;
+		double vmCounter = 0;
+
+		List<MobileVM> vmArray = SimManager.getInstance().getMobileServerManager().getVmList(hostIndex);
+		//for each vm...
+		for(int vmIndex=0; vmIndex<vmArray.size(); vmIndex++){
+			totalUtilization += vmArray.get(vmIndex).getCloudletScheduler().getTotalUtilizationOfCpu(CloudSim.clock());
+			vmCounter++;
+		}
+		
+		return totalUtilization / vmCounter;
+	}
 
 	private Datacenter createDatacenter(int index) throws Exception{
 		String arch = "x86";
