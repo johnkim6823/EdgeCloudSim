@@ -14,22 +14,33 @@ package edu.boun.edgecloudsim.applications.sample_app4;
 
 import java.util.List;
 
+/*CloudSIM */
 import org.antlr.runtime.RecognitionException;
 import org.cloudbus.cloudsim.Host;
 import org.cloudbus.cloudsim.UtilizationModelFull;
 import org.cloudbus.cloudsim.Vm;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.SimEvent;
-
-import net.sourceforge.jFuzzyLogic.FIS;
-import edu.boun.edgecloudsim.cloud_server.CloudVM;
 import edu.boun.edgecloudsim.core.SimManager;
 import edu.boun.edgecloudsim.core.SimSettings;
+
+/*FUZZY */
+import net.sourceforge.jFuzzyLogic.FIS;
+
+/*CLOUD */
+import edu.boun.edgecloudsim.cloud_server.CloudVM;
+
+/*EDGE */
 import edu.boun.edgecloudsim.edge_orchestrator.EdgeOrchestrator;
 import edu.boun.edgecloudsim.edge_server.EdgeHost;
 import edu.boun.edgecloudsim.edge_server.EdgeVM;
 import edu.boun.edgecloudsim.edge_client.CpuUtilizationModel_Custom;
 import edu.boun.edgecloudsim.edge_client.Task;
+
+/*MOBILE */
+import edu.boun.edgecloudsim.edge_client.mobile_processing_unit.MobileVM;
+
+/*UTILS */
 import edu.boun.edgecloudsim.utils.SimLogger;
 import edu.boun.edgecloudsim.utils.SimUtils;
 
@@ -200,6 +211,19 @@ public class FuzzyEdgeOrchestrator extends EdgeOrchestrator {
 				else
 					result = SimSettings.GENERIC_EDGE_DEVICE_ID;
 			}
+
+			//ONLY//
+			else if(policy.equals("ONLY_MOBILE")){
+				result = SimSettings.MOBILE_DATACENTER_ID;
+			}
+			else if(policy.equals("ONLY_EDGE")){
+				result = SimSettings.GENERIC_EDGE_DEVICE_ID;
+			}
+			else if(policy.equals("ONLY_CLOUD")){
+				result = SimSettings.CLOUD_DATACENTER_ID;
+			}
+			////////////////////////////////////////////////////////////
+
 			else if(policy.equals("NETWORK_BASED")){
 				if(wanBW > 6)
 					result = SimSettings.CLOUD_DATACENTER_ID;
@@ -275,6 +299,16 @@ public class FuzzyEdgeOrchestrator extends EdgeOrchestrator {
 				}
 			}
 		}
+		
+		else if (deviceId == SimSettings.MOBILE_DATACENTER_ID) {
+			List<MobileVM> vmArray = SimManager.getInstance().getMobileServerManager().getVmList(task.getMobileDeviceId());
+			double requiredCapacity = ((CpuUtilizationModel_Custom)task.getUtilizationModelCpu()).predictUtilization(vmArray.get(0).getVmType());
+			double targetVmCapacity = (double) 100 - vmArray.get(0).getCloudletScheduler().getTotalUtilizationOfCpu(CloudSim.clock());
+			
+			if (requiredCapacity <= targetVmCapacity)
+				selectedVM = vmArray.get(0);
+		 }
+
 		else{
 			//if the host is specifically defined!
 			List<EdgeVM> vmArray = SimManager.getInstance().getEdgeServerManager().getVmList(deviceId);

@@ -7,7 +7,7 @@
  * Copyright (c) 2017, Bogazici University, Istanbul, Turkey
  */
 
-package edu.boun.edgecloudsim.applications.sample_app3;
+package edu.boun.edgecloudsim.applications.three_tier;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -49,9 +49,9 @@ public class MainApp {
 		}
 		else{
 			SimLogger.printLine("Simulation setting file, output folder and iteration number are not provided! Using default ones...");
-			configFile = "scripts/sample_app3/config/default_config.properties";
-			applicationsFile = "scripts/sample_app3/config/applications.xml";
-			edgeDevicesFile = "scripts/sample_app3/config/edge_devices.xml";
+			configFile = "scripts/three_tier/config/default_config.properties";
+			applicationsFile = "scripts/three_tier/config/applications.xml";
+			edgeDevicesFile = "scripts/three_tier/config/edge_devices.xml";
 			outputFolder = "sim_results/ite" + iterationNumber;
 		}
 
