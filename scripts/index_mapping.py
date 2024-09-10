@@ -1,18 +1,20 @@
 all_apps_generic = {
+    # ALL
     0: 'num_of_completed_tasks(ALL)',
     1: 'num_of_failed_tasks(ALL)',
     2: 'num_of_uncompleted_tasks(ALL)',
-    3: 'num_of_failed_tasks_due_network',
+    3: 'num_of_failed_tasks_due_network(ALL)',
     4: 'average_service_time(ALL)_(sec)',
     5: 'average_processing_time(ALL)_(sec)',
     6: 'average_network_delay(ALL)_(sec)',
     7: 'average_cost',
     8: 'unknown1',
     9: 'num_of_failed_tasks_due_vm_capacity(ALL)',
-    10: 'num_of_failed_tasks_due_mobility',
+    10: 'num_of_failed_tasks_due_mobility(ALL)',
     11: 'unknown2',
     12: 'unknown3',
     13: 'unknown4',
+    # Edge Metric
     14: 'num_of_completed_tasks(Edge)',
     15: 'num_of_failed_tasks(Edge)',
     16: 'num_of_uncompleted_tasks(Edge)',
@@ -22,6 +24,7 @@ all_apps_generic = {
     20: 'unknown6',
     21: 'average_server_utilization(Edge)_(%)',
     22: 'num_of_failed_tasks_due_vm_capacity(Edge)',
+    # Cloud Metic
     23: 'num_of_completed_tasks(Cloud)',
     24: 'num_of_failed_tasks(Cloud)',
     25: 'num_of_uncompleted_tasks(Cloud)',
@@ -30,7 +33,8 @@ all_apps_generic = {
     28: 'average_processing_time(Cloud)_(sec)',
     29: 'unknown13',
     30: 'average_server_utilization(Cloud)_(%)',
-    31: 'unknown15',
+    31: 'num_of_failed_tasks_due_vm_capacity(Cloud)',
+    # Mobile Metric
     32: 'num_of_completed_tasks(Mobile)',
     33: 'num_of_failed_tasks(Mobile)',
     34: 'num_of_uncompleted_tasks(Mobile)',
@@ -40,6 +44,7 @@ all_apps_generic = {
     38: 'unknown17',
     39: 'average_server_utilization(Mobile)_(%)',
     40: 'num_of_failed_tasks_due_vm_capacity(Mobile)',
+    # Network Metric
     41: 'average_network_delay(LAN_delay)_(sec)',
     42: 'average_network_delay(MAN_delay)_(sec)',
     43: 'average_network_delay(WAN_delay)_(sec)',
@@ -49,5 +54,6 @@ all_apps_generic = {
     47: 'num_of_failed_tasks_due_network(WAN)',
     48: 'num_of_failed_tasks_due_network(GSM)',
     49: 'unknown21',
+    # overhead (ns)
     50: 'average_overhead(ns)'
 }

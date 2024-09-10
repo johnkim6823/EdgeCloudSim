@@ -1,4 +1,4 @@
-package edu.boun.edgecloudsim.applications.sample_app4;
+package edu.boun.edgecloudsim.applications.fuzzy;
 
 public final class FCL_definition {
 	public final static String memberShipFunctions1 = String.join("\n"

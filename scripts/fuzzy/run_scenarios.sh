@@ -57,17 +57,3 @@ do
 #	cpu=$(($i % $num_of_cores))
 # 	taskset -cp $cpu,$cpu $pid
 done
-
-echo "###############################################################"
-echo "                  SIMULARIONS ARE STARTED!"
-echo "###############################################################"
-echo "You can follow the progress via the following command"
-echo "tail -f <scenario_folder>/progress.log"
-echo "e.g."
-echo "tail -f output/${date}/${scenario_name}/progress.log"
-echo "###############################################################"
-echo "You can inspect each iteration via the following command"
-echo "tail -f <scenario_folder>/ite[n].log"
-echo "e.g."
-echo "tail -f output/${date}/${scenario_name}/ite1.log"
-echo "###############################################################"
