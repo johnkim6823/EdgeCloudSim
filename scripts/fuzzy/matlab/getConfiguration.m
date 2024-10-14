@@ -6,35 +6,29 @@ function [ret_val] = getConfiguration(argType)
     if(argType == 1)
         ret_val = 'D:\sim_results';
     elseif(argType == 2)
-        ret_val = 60 * 20; %simulation time (in seconds)
+        ret_val = 10; %Number of iterations
     elseif(argType == 3)
-        ret_val = 50; %Number of iterations
-    elseif(argType == 4)
-        ret_val = 1; %x tick interval for number of mobile devices
-    elseif(argType == 5)
-        ret_val = {'FUZZY_BASED','UTILIZATION_BASED','NETWORK_BASED','FUZZY_COMPETITOR','HYBRID'};
-    elseif(argType == 6)
-        ret_val = {'fuzzy','util.','bw','Flores*','hybrid'};
-    elseif(argType == 7)
-        ret_val=[10 3 9 8]; %position of figure
-    elseif(argType == 8)
-        ret_val=0; %for future usage
-    elseif(argType == 9)
-        ret_val = 'Number of Mobile Devices'; %Common text for x axis
-    elseif(argType == 10)
         ret_val = 200; %min number of mobile device
-    elseif(argType == 11)
+    elseif(argType == 4)
         ret_val = 200; %step size of mobile device count
+    elseif(argType == 5)
+        ret_val =2000; %max number of mobile device
+    elseif(argType == 6)
+        ret_val = 1; %xTickLabelCoefficient
+    elseif(argType == 7)
+        ret_val = {'ONLY_EDGE','ONLY_MOBILE','HYBRID'};
+    elseif(argType == 8)
+        ret_val = {'only edge','only mobile','hybrid'};
+    elseif(argType == 9)
+        ret_val=[10 3 12 12]; %position of figure
+    elseif(argType == 10)
+        ret_val = 'Number of Mobile Devices'; %Common text for x axis
+    elseif(argType == 11)
+        ret_val = 1; %return 1 if you want to save figure as pdf
     elseif(argType == 12)
-        ret_val =2400; %max number of mobile device
-    elseif(argType == 17)
-        ret_val = 2; %xTickLabelCoefficient
-    elseif(argType == 18)
-        ret_val = 0; %return 1 if you want to save figure as pdf
-    elseif(argType == 19)
         ret_val = 0; %return 1 if you want to plot errors
     elseif(argType == 20)
-        ret_val=0; %return 1 if graph is plotted colerful
+        ret_val=1; %return 1 if graph is plotted colerful
     elseif(argType == 21)
         ret_val=[0.55 0 0]; %color of first line
     elseif(argType == 22)
