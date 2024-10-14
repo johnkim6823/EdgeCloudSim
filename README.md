@@ -147,168 +147,36 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
   2. In MainApp.java, change SCENARIO_NAME into corresponding scenario_name
 
 
-# SAMPLE SCENARIOS
-## sample_app1
-**Testing WORST-FIT policy with various scenarios**
-<table>
-  <tr>
-    <th colspan="2">WORST-FIT</th>
-  </tr>
-  <tr>
-    <td>SINGLE-TIER</td>
-    <td>ES</td>
-  </tr>
-  <tr>
-    <td>TWO-TIER</td>
-    <td>ES+CS</td>
-  </tr>
-  <tr>
-    <td>TWO-TIER-WITH-EO</td>
-    <td>ES+CS+orchestrator</td>
-  </tr>
-</table>
-* MD는 관여 X
+# SCENARIOS
 
----------------------------------------------------------------------------------
+## Three-Tier
+| Policy                | Description                                                                                                                                                           |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ONLY_MOBILE           | - Tasks are processed only on the mobile device                                                                                                                        |
+| ONLY_EDGE             | - Tasks are processed only on the edge server                                                                                                                          |
+| ONLY_CLOUD            | - Tasks are processed only on the cloud                                                                                                                                |
+| UTILIZATION_BASED      | - Considers only edge server utilization                                                                                                                               |
+|                       | - If edge utilization > 80%:                                                                                                                                            |
+|                       |   - Offload to the cloud if bandwidth is high (wanBW > 2)                                                                                                              |
+|                       |   - Keep task on mobile if bandwidth is low                                                                                                                            |
+|                       | - If edge utilization ≤ 80%: use the edge server                                                                                                                       |
+| NETWORK_BASED          | - Considers only network delay and bandwidth                                                                                                                           |
+|                       | - If bandwidth > 5: offload to the cloud                                                                                                                               |
+|                       | - If bandwidth > 2: offload to the edge server                                                                                                                         |
+|                       | - If bandwidth ≤ 2: keep the task on mobile                                                                                                                            |
+| RANDOM                 | - Randomly assigns tasks to one of the following:                                                                                                                      |
+|                       |   - Mobile device                                                                                                                                                      |
+|                       |   - Edge server                                                                                                                                                        |
+|                       |   - Cloud                                                                                                                                                              |
+| EDGE_PRIORITY          | - Prioritizes the edge server                                                                                                                                          |
+|                       | - If bandwidth > 6:                                                                                                                                                    |
+|                       |   - Offload to edge server if utilization ≤ 90%                                                                                                                        |
+|                       |   - Offload to cloud if edge utilization > 90%                                                                                                                         |
+|                       | - If bandwidth > 3:                                                                                                                                                    |
+|                       |   - Offload to cloud if edge utilization > 90%                                                                                                                         |
+|                       |   - Offload to mobile if edge utilization < 20%                                                                                                                        |
+|                       |   - Otherwise, offload to edge server                                                                                                                                  |
+|                       | - If bandwidth ≤ 3: keep task on mobile                                                                                                                                |
 
-## sample_app2
-**Testing various policies in TWO_TIER_WITH_EO scenario**
-<table>
-  <tr>
-    <th colspan="2">TWO-TIER-WITH-EO</th>
-  </tr>
-  <tr>
-    <td>NETWORK-BASED</td>
-    <td>If `WAN bandwidth` > `6 Mbps`, offload task to CS. <br> Otherwise, offload task to ES</td>
-  </tr>
-    <tr>
-    <td>UTILIZATION-BASED</td>
-    <td>If average `edge servers CPU utilization` > `80`, offload task to CS. <br> Otherwise, offload task to ES</td>
-  </tr>
-  </tr>
-  <tr>
-    <td>HYBRID</td>
-    <td>If `WAN bandwidth` > `6 Mbps` && average `edge servers CPU utilization` > `80`, offload task to CS. <br> Otherwise, offload task to ES</td>
-  </tr>
-</table>  
-* MD는 관여 X
 
----------------------------------------------------------------------------------
-
-## sample_app3
-**Testing Task processing scenario with various policies**
-<table>
-  <tr>
-    <td>Only Edge</td>
-    <td>ES에서만 Task Processing</td>
-  </tr>
-  <tr>
-    <td>Only MD</td>
-    <td>MD에서만 Task Processing</td>
-  </tr>
-  <tr>
-    <td>HYBRID</td>
-    <td>
-      ES의 VM CPU 사용량 예측 -> 필요한 CPU 용량 계산
-      <br> 현재 모바일의 VM의 CPU 사용량 가져옴
-      <br> 100% - 현재 사용량
-      <br> 작업의 요구 용량 > 현재 모바일 vm 사용 가능한 용량 -> ES로 offloading
-    </td>
-  </tr>
-</table>
-* CS는 관여 X
-
----------------------------------------------------------------------------------
-
-## sample_app4
-**sample_app2 + Policy 추가됨**
-`FUZZY_BASED_COMPETITOR + HYBRID` 추가됨
-
----------------------------------------------------------------------------------
-
-### sample_app5
-**AI based policies**
-#### Policies
-1. RANDOM
-2. PREDICTIVE
-3. GAME_THEORY
-4. MAB,AI_BASED
-
----------------------------------------------------------------------------------
-
-## scenario1
-**다양한 VM 할당 정책**
-**테스트 오프로딩에는 ES만 사용됨**
-<table>
-  <tr>
-    <th>목록</th>
-    <th>설명</th>
-  </tr>
-  <tr>
-    <td>RANDOM</td>
-    <td>무작위 VM이 선택됨</td>
-  </tr>
-  <tr>
-    <td>WORST</td>
-    <td>CPU 사용률이 가장 낮은 VM이 선택</td>
-  </tr>
-  <tr>
-    <td>BEST</td>
-    <td>CPU 사용률이 가장 높은 VM이 선택</td>
-  </tr>
-  <tr>
-    <td>FIRST</td>
-    <td>사용 가능한 첫 번째 VM이 선택</td>
-  </tr>
-  <tr>
-    <td>NEXT</td>
-    <td>호스트를 순서대로 방문하여 가장 적합한 첫 번째 VM이 선택</td>
-  </tr>
-</table>
-
----------------------------------------------------------------------------------
-
-## scenario2
-**작업 오프로딩의 세분성을 결정하는 다양한 접근 방식에 대한 성능 평가**
-<table>
-  <tr>
-    <th>목록</th>
-    <th>설명</th>
-  </tr>
-  <tr>
-    <td>RANDOM</td>
-    <td>무작위 VM 선택</td>
-  </tr>
-  <tr>
-    <td>MD-UTILIZATION-HEURISTIC</td>
-    <td>평균 모바일 디바이스 CPU 사용률이 75 미만인 경우 local에서 실행. <br> Oterwise ES에 offload.</td>
-  </tr>
-  <tr>
-    <td>EDGE-UTILIZATION-HEURISTIC</td>
-    <td>평균 엣지 서버 CPU 사용률이 90 미만인 경우 ES로 Task offload. <br> Otherwise local process.</td>
-  </tr>
-</table>
-
----------------------------------------------------------------------------------
-
-## scenario3
-**Testing Task processing with various offloading policies**
-<table>
-  <tr>
-    <th>목록</th>
-    <th>설명</th>
-  </tr>
-  <tr>
-    <td>RANDOM</td>
-    <td>무작위 VM 선택</td>
-  </tr>
-  <tr>
-    <td>EDGE-UTILIZATION-HEURISTIC</td>
-    <td>ES의 평균 CPU 사용률이 75를 초과하면 작업을 CS로 offload. <br> Oterwise ES에 offload.</td>
-  </tr>
-  <tr>
-    <td>NETWORK-UTILIZATION-HEURISTIC</td>
-    <td>WAN 대역폭이 5Mbps를 초과하면 작업을 CS로 offload. Oterwise ES에 offload.</td>
-  </tr>
-</table>
 
