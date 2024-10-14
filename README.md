@@ -161,4 +161,8 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
 | EDGE_PRIORITY          | - Prioritizes the edge server.<br>- If bandwidth > 6:<br>&nbsp;&nbsp;&nbsp;- Offload to edge server if utilization ≤ 90%<br>&nbsp;&nbsp;&nbsp;- Offload to cloud if edge utilization > 90%.<br>- If bandwidth > 3:<br>&nbsp;&nbsp;&nbsp;- Offload to cloud if edge utilization > 90%<br>&nbsp;&nbsp;&nbsp;- Offload to mobile if edge utilization < 20%<br>&nbsp;&nbsp;&nbsp;- Otherwise, offload to edge server.<br>- If bandwidth ≤ 3: keep task on mobile. |
 
 
-
+## Fuzzy
+| Policy                | Description                                                                                                                                                           |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| FUZZY_BASED            | - Uses fuzzy logic to make decisions based on various factors.<br>- Inputs: manual delay, nearest edge utilization, best remote edge utilization.<br>- If offload decision > 50, offload to the best remote edge host.<br>- Considers task size, bandwidth, delay sensitivity, and edge utilization for final decision.<br>&nbsp;&nbsp;&nbsp;- Offload to mobile if decision > 60<br>&nbsp;&nbsp;&nbsp;- Offload to cloud if decision between 50 and 60<br>&nbsp;&nbsp;&nbsp;- Otherwise, use the best edge server. |
+| FUZZY_COMPETITOR       | - Competitor-based fuzzy decision making.<br>- Inputs: bandwidth, CPU speed, video execution, and data size.<br>- If offload decision > 60, offload to mobile.<br>&nbsp;&nbsp;&nbsp;- If decision between 50 and 60, offload to cloud.<br>&nbsp;&nbsp;&nbsp;- Otherwise, use the edge server. |
