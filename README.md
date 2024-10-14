@@ -155,28 +155,10 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
 | ONLY_MOBILE           | - Tasks are processed only on the mobile device                                                                                                                        |
 | ONLY_EDGE             | - Tasks are processed only on the edge server                                                                                                                          |
 | ONLY_CLOUD            | - Tasks are processed only on the cloud                                                                                                                                |
-| UTILIZATION_BASED      | - Considers only edge server utilization                                                                                                                               |
-|                       | - If edge utilization > 80%:                                                                                                                                            |
-|                       |   - Offload to the cloud if bandwidth is high (wanBW > 2)                                                                                                              |
-|                       |   - Keep task on mobile if bandwidth is low                                                                                                                            |
-|                       | - If edge utilization ≤ 80%: use the edge server                                                                                                                       |
-| NETWORK_BASED          | - Considers only network delay and bandwidth                                                                                                                           |
-|                       | - If bandwidth > 5: offload to the cloud                                                                                                                               |
-|                       | - If bandwidth > 2: offload to the edge server                                                                                                                         |
-|                       | - If bandwidth ≤ 2: keep the task on mobile                                                                                                                            |
-| RANDOM                 | - Randomly assigns tasks to one of the following:                                                                                                                      |
-|                       |   - Mobile device                                                                                                                                                      |
-|                       |   - Edge server                                                                                                                                                        |
-|                       |   - Cloud                                                                                                                                                              |
-| EDGE_PRIORITY          | - Prioritizes the edge server                                                                                                                                          |
-|                       | - If bandwidth > 6:                                                                                                                                                    |
-|                       |   - Offload to edge server if utilization ≤ 90%                                                                                                                        |
-|                       |   - Offload to cloud if edge utilization > 90%                                                                                                                         |
-|                       | - If bandwidth > 3:                                                                                                                                                    |
-|                       |   - Offload to cloud if edge utilization > 90%                                                                                                                         |
-|                       |   - Offload to mobile if edge utilization < 20%                                                                                                                        |
-|                       |   - Otherwise, offload to edge server                                                                                                                                  |
-|                       | - If bandwidth ≤ 3: keep task on mobile                                                                                                                                |
+| UTILIZATION_BASED      | - Considers only edge server utilization.<br>- If edge utilization > 80%:<br>&nbsp;&nbsp;&nbsp;- Offload to the cloud if bandwidth is high (wanBW > 2)<br>&nbsp;&nbsp;&nbsp;- Keep task on mobile if bandwidth is low.<br>- If edge utilization ≤ 80%: use the edge server. |
+| NETWORK_BASED          | - Considers only network delay and bandwidth.<br>- If bandwidth > 5: offload to the cloud.<br>- If bandwidth > 2: offload to the edge server.<br>- If bandwidth ≤ 2: keep the task on mobile. |
+| RANDOM                 | - Randomly assigns tasks to one of the following:<br>&nbsp;&nbsp;&nbsp;- Mobile device<br>&nbsp;&nbsp;&nbsp;- Edge server<br>&nbsp;&nbsp;&nbsp;- Cloud. |
+| EDGE_PRIORITY          | - Prioritizes the edge server.<br>- If bandwidth > 6:<br>&nbsp;&nbsp;&nbsp;- Offload to edge server if utilization ≤ 90%<br>&nbsp;&nbsp;&nbsp;- Offload to cloud if edge utilization > 90%.<br>- If bandwidth > 3:<br>&nbsp;&nbsp;&nbsp;- Offload to cloud if edge utilization > 90%<br>&nbsp;&nbsp;&nbsp;- Offload to mobile if edge utilization < 20%<br>&nbsp;&nbsp;&nbsp;- Otherwise, offload to edge server.<br>- If bandwidth ≤ 3: keep task on mobile. |
 
 
 
