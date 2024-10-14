@@ -23,7 +23,7 @@ import edu.boun.edgecloudsim.core.SimSettings;
 import edu.boun.edgecloudsim.utils.SimLogger;
 import edu.boun.edgecloudsim.utils.SimUtils;
 
-public class MainApp {
+public class ThreeTierMainApp {
 	
 	/**
 	 * Creates main() to run this example

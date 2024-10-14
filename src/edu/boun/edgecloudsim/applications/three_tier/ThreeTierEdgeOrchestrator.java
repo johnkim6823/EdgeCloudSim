@@ -38,11 +38,11 @@ import edu.boun.edgecloudsim.edge_client.mobile_processing_unit.MobileVM;
 /*UTIL*/
 import edu.boun.edgecloudsim.utils.SimLogger;
 
-public class ThreetierEdgeOrchestrator extends EdgeOrchestrator {
+public class ThreeTierEdgeOrchestrator extends EdgeOrchestrator {
 
 	private int numberOfHost; // used by load balancer
 
-	public ThreetierEdgeOrchestrator(String _policy, String _simScenario) {
+	public ThreeTierEdgeOrchestrator(String _policy, String _simScenario) {
 		super(_policy, _simScenario);
 	}
 
@@ -86,7 +86,7 @@ public class ThreetierEdgeOrchestrator extends EdgeOrchestrator {
 			result = SimSettings.CLOUD_DATACENTER_ID;
 		}
 
-		//EDGE_PRIORITY Policy: combination of bandwidth and utilization
+		// EDGE_PRIORITY Policy: combination of bandwidth and utilization
 		else if (policy.equals("EDGE_PRIORITY")) {
 			if (wanBW > 6) {
 				if (edgeUtilization > 90) {
@@ -133,22 +133,21 @@ public class ThreetierEdgeOrchestrator extends EdgeOrchestrator {
 			}
 		}
 
-
 		else if (policy.equals("RANDOM")) {
-    		Random rand = new Random();
-        	int randomChoice = rand.nextInt(3); // Generate a random number between 0 and 2
-        	switch (randomChoice) {
-            	case 0:
-                	result = SimSettings.MOBILE_DATACENTER_ID;  // Mobile
-                	break;
-            	case 1:
-                	result = SimSettings.GENERIC_EDGE_DEVICE_ID;  // Edge
-                	break;
-            	case 2:
-                	result = SimSettings.CLOUD_DATACENTER_ID;  // Cloud
-                	break;
+			Random rand = new Random();
+			int randomChoice = rand.nextInt(3); // Generate a random number between 0 and 2
+			switch (randomChoice) {
+				case 0:
+					result = SimSettings.MOBILE_DATACENTER_ID; // Mobile
+					break;
+				case 1:
+					result = SimSettings.GENERIC_EDGE_DEVICE_ID; // Edge
+					break;
+				case 2:
+					result = SimSettings.CLOUD_DATACENTER_ID; // Cloud
+					break;
 			}
-        }
+		}
 
 		// Error handling for unknown policy
 		else {

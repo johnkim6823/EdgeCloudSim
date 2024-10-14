@@ -147,7 +147,7 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
   2. In MainApp.java, change SCENARIO_NAME into corresponding scenario_name
 
 
-# SCENARIOS
+# Scenario Descriptions
 
 ## Three-Tier
 | Policy                | Description                                                                                                                                                           |

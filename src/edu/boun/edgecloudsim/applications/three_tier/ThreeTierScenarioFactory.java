@@ -47,7 +47,7 @@ public class ThreeTierScenarioFactory implements ScenarioFactory {
 
 	@Override
 	public EdgeOrchestrator getEdgeOrchestrator() {
-		return new ThreetierEdgeOrchestrator(orchestratorPolicy, simScenario);
+		return new ThreeTierEdgeOrchestrator(orchestratorPolicy, simScenario);
 	}
 
 	@Override

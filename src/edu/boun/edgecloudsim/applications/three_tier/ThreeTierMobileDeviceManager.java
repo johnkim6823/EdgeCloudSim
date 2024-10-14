@@ -36,7 +36,6 @@ import edu.boun.edgecloudsim.edge_client.CpuUtilizationModel_Custom;
 import edu.boun.edgecloudsim.edge_client.MobileDeviceManager;
 import edu.boun.edgecloudsim.edge_client.Task;
 import edu.boun.edgecloudsim.edge_server.EdgeHost;
-import edu.boun.edgecloudsim.edge_server.EdgeVM;
 import edu.boun.edgecloudsim.network.NetworkModel;
 import edu.boun.edgecloudsim.utils.TaskProperty;
 import edu.boun.edgecloudsim.utils.Location;
@@ -167,16 +166,13 @@ public class ThreeTierMobileDeviceManager extends MobileDeviceManager {
 		else if(task.getAssociatedDatacenterId() == SimSettings.MOBILE_DATACENTER_ID) {
 			SimLogger.getInstance().taskEnded(task.getCloudletId(), CloudSim.clock());
 			
+			// 작업이 완료된 후 CPU utilization을 추적하여 로그 남기기
+			double cpuUtilization = task.getUtilizationModelCpu().getUtilization(CloudSim.clock());
+			SimLogger.printLine("Task #" + task.getCloudletId() + " on Mobile Device ID: " + task.getMobileDeviceId() +
+					" finished. CPU Utilization: " + cpuUtilization);
+
 			/*
-			 * TODO: In this scenario device to device (D2D) communication is ignored.
-			 * If you want to consider D2D communication, you should transmit the result
-			 * of the task to the sender mobile device. Hence, you should calculate
-			 * D2D_DELAY here and send the following event:
-			 * 
-			 * schedule(getId(), delay, RESPONSE_RECEIVED_BY_MOBILE_DEVICE, task);
-			 * 
-			 * Please not that you should deal with the mobility and D2D delay calculation.
-			 * The task can be failed due to the network bandwidth or the nobility.
+			 * TODO: D2D 통신을 고려하려면 여기에 D2D delay 계산 및 로그 추가
 			 */
 		}
 
@@ -407,14 +403,25 @@ public class ThreeTierMobileDeviceManager extends MobileDeviceManager {
 	}
 	
 	private void submitTaskToVm(Task task, SimSettings.VM_TYPES vmType) {
-		//SimLogger.printLine(CloudSim.clock() + ": Cloudlet#" + task.getCloudletId() + " is submitted to VM#" + task.getVmId());
+		// SimLogger.printLine(
+		// 		CloudSim.clock() + ": Cloudlet#" + task.getCloudletId() + " is submitted to VM#" + task.getVmId());
+
+		// 기존에 있던 스케줄 작업
 		schedule(getVmsToDatacentersMap().get(task.getVmId()), 0, CloudSimTags.CLOUDLET_SUBMIT, task);
 
+		// 작업을 할당한 후 CPU utilization을 추적
 		SimLogger.getInstance().taskAssigned(task.getCloudletId(),
 				task.getAssociatedDatacenterId(),
 				task.getAssociatedHostId(),
 				task.getAssociatedVmId(),
 				vmType.ordinal());
+
+		// CPU utilization 로그를 기록하는 부분 추가
+		// if (vmType == SimSettings.VM_TYPES.MOBILE_VM) {
+		// 	double cpuUtilization = task.getUtilizationModelCpu().getUtilization(CloudSim.clock());
+		// 	SimLogger.printLine(
+		// 			"Mobile Device ID: " + task.getMobileDeviceId() + ", CPU Utilization: " + cpuUtilization);
+		// }
 	}
 	
 	private Task createTask(TaskProperty edgeTask){

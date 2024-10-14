@@ -1,7 +1,7 @@
 /*
- * Title:        EdgeCloudSim - Sample Application
+ * Title:        EdgeCloudSim - Main Application
  * 
- * Description:  Sample application for EdgeCloudSim
+ * Description:  Main application for Sample App3
  *               
  * Licence:      GPL - http://www.gnu.org/copyleft/gpl.html
  * Copyright (c) 2017, Bogazici University, Istanbul, Turkey

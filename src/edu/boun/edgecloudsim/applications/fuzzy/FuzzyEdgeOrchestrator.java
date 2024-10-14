@@ -87,9 +87,7 @@ public class FuzzyEdgeOrchestrator extends EdgeOrchestrator {
 
 		// RODO: return proper host ID
 
-		if (simScenario.equals("SINGLE_TIER")) {
-			result = SimSettings.GENERIC_EDGE_DEVICE_ID;
-		} else if (simScenario.equals("THREE_TIER")) {
+		if (simScenario.equals("THREE_TIER")) {
 			int bestRemoteEdgeHostIndex = 0;
 			int nearestEdgeHostIndex = 0;
 			double nearestEdgeUtilization = 0;
