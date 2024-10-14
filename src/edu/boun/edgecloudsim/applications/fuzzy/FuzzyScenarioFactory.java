@@ -17,7 +17,6 @@ import edu.boun.edgecloudsim.edge_orchestrator.EdgeOrchestrator;
 import edu.boun.edgecloudsim.edge_server.DefaultEdgeServerManager;
 import edu.boun.edgecloudsim.edge_server.EdgeServerManager;
 import edu.boun.edgecloudsim.edge_client.MobileDeviceManager;
-import edu.boun.edgecloudsim.edge_client.mobile_processing_unit.DefaultMobileServerManager;
 import edu.boun.edgecloudsim.edge_client.mobile_processing_unit.MobileServerManager;
 import edu.boun.edgecloudsim.mobility.MobilityModel;
 import edu.boun.edgecloudsim.mobility.NomadicMobility;
@@ -69,15 +68,13 @@ public class FuzzyScenarioFactory implements ScenarioFactory {
 	@Override
 	public CloudServerManager getCloudServerManager() {
 		return new DefaultCloudServerManager();
-	}
-
-	@Override
-	public MobileServerManager getMobileServerManager() {
-		return new DefaultMobileServerManager();
-	}
-	
+	}	
 	@Override
 	public MobileDeviceManager getMobileDeviceManager() throws Exception {
 		return new FuzzyMobileDeviceManager();
+	}
+	@Override
+	public MobileServerManager getMobileServerManager() {
+		return new FuzzyMobileServerManager(numOfMobileDevice);
 	}
 }
