@@ -181,11 +181,15 @@ public class FuzzyEdgeOrchestrator extends EdgeOrchestrator {
 				 * SimLogger.printLine("########################################");
 				 */
 
-				if (fis1.getVariable("offload_decision").getValue() > 50) {
+				if (fis1.getVariable("offload_decision").getValue() > 60) {
+					result = SimSettings.MOBILE_DATACENTER_ID;
+				} else if (fis1.getVariable("offload_decision").getValue() >= 50
+						&& fis1.getVariable("offload_decision").getValue() < 60) {
 					result = SimSettings.CLOUD_DATACENTER_ID;
 				} else {
 					result = bestHostIndex;
 				}
+
 			} else if (policy.equals("FUZZY_COMPETITOR")) {
 				double utilization = edgeUtilization;
 				double cpuSpeed = (double) 100 - utilization;
@@ -213,10 +217,14 @@ public class FuzzyEdgeOrchestrator extends EdgeOrchestrator {
 				 * SimLogger.printLine("########################################");
 				 */
 
-				if (fis3.getVariable("offload_decision").getValue() > 50)
+				if (fis1.getVariable("offload_decision").getValue() > 60) {
+					result = SimSettings.MOBILE_DATACENTER_ID;
+				} else if (fis1.getVariable("offload_decision").getValue() >= 50
+						&& fis1.getVariable("offload_decision").getValue() < 60) {
 					result = SimSettings.CLOUD_DATACENTER_ID;
-				else
+				} else {
 					result = SimSettings.GENERIC_EDGE_DEVICE_ID;
+				}
 			}
 
 			else if (policy.equals("EDGE_PRIORITY")) {
@@ -239,16 +247,29 @@ public class FuzzyEdgeOrchestrator extends EdgeOrchestrator {
 				}
 			}
 
+			// RANDOM
+			else if (policy.equals("RANDOM")) {
+				Random rand = new Random();
+				int randomChoice = rand.nextInt(3); // Generate a random number between 0 and 2
+				switch (randomChoice) {
+					case 0:
+						result = SimSettings.MOBILE_DATACENTER_ID; // Mobile
+						break;
+					case 1:
+						result = SimSettings.GENERIC_EDGE_DEVICE_ID; // Edge
+						break;
+					case 2:
+						result = SimSettings.CLOUD_DATACENTER_ID; // Cloud
+						break;
+				}
+			}
+
 			/* ONLY */
 			else if (policy.equals("ONLY_MOBILE")) {
 				result = SimSettings.MOBILE_DATACENTER_ID;
-			}
-
-			else if (policy.equals("ONLY_EDGE")) {
+			} else if (policy.equals("ONLY_EDGE")) {
 				result = SimSettings.GENERIC_EDGE_DEVICE_ID;
-			}
-
-			else if (policy.equals("ONLY_CLOUD")) {
+			} else if (policy.equals("ONLY_CLOUD")) {
 				result = SimSettings.CLOUD_DATACENTER_ID;
 			}
 
@@ -283,23 +304,6 @@ public class FuzzyEdgeOrchestrator extends EdgeOrchestrator {
 				System.exit(0);
 			}
 
-		}
-
-		// RANDOM
-		else if (policy.equals("RANDOM")) {
-			Random rand = new Random();
-			int randomChoice = rand.nextInt(3); // Generate a random number between 0 and 2
-			switch (randomChoice) {
-				case 0:
-					result = SimSettings.MOBILE_DATACENTER_ID; // Mobile
-					break;
-				case 1:
-					result = SimSettings.GENERIC_EDGE_DEVICE_ID; // Edge
-					break;
-				case 2:
-					result = SimSettings.CLOUD_DATACENTER_ID; // Cloud
-					break;
-			}
 		}
 
 		else {
