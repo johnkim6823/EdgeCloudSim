@@ -24,13 +24,13 @@ import edu.boun.edgecloudsim.task_generator.IdleActiveLoadGenerator;
 import edu.boun.edgecloudsim.task_generator.LoadGeneratorModel;
 import edu.boun.edgecloudsim.network.NetworkModel;
 
-public class SampleScenarioFactory implements ScenarioFactory {
+public class ThreeTierScenarioFactory implements ScenarioFactory {
 	private int numOfMobileDevice;
 	private double simulationTime;
 	private String orchestratorPolicy;
 	private String simScenario;
 	
-	SampleScenarioFactory(int _numOfMobileDevice,
+	ThreeTierScenarioFactory(int _numOfMobileDevice,
 			double _simulationTime,
 			String _orchestratorPolicy,
 			String _simScenario){
@@ -47,7 +47,7 @@ public class SampleScenarioFactory implements ScenarioFactory {
 
 	@Override
 	public EdgeOrchestrator getEdgeOrchestrator() {
-		return new SampleEdgeOrchestrator(orchestratorPolicy, simScenario);
+		return new ThreetierEdgeOrchestrator(orchestratorPolicy, simScenario);
 	}
 
 	@Override
@@ -57,7 +57,7 @@ public class SampleScenarioFactory implements ScenarioFactory {
 
 	@Override
 	public NetworkModel getNetworkModel() {
-		return new SampleNetworkModel(numOfMobileDevice, simScenario);
+		return new ThreeTierNetworkModel(numOfMobileDevice, simScenario);
 	}
 
 	@Override
@@ -72,11 +72,11 @@ public class SampleScenarioFactory implements ScenarioFactory {
 
 	@Override
 	public MobileDeviceManager getMobileDeviceManager() throws Exception {
-		return new SampleMobileDeviceManager();
+		return new ThreeTierMobileDeviceManager();
 	}
 
 	@Override
 	public MobileServerManager getMobileServerManager() {
-		return new SampleMobileServerManager(numOfMobileDevice);
+		return new ThreeTierMobileServerManager(numOfMobileDevice);
 	}
 }

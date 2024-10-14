@@ -26,7 +26,7 @@ import edu.boun.edgecloudsim.network.NetworkModel;
 import edu.boun.edgecloudsim.utils.Location;
 import edu.boun.edgecloudsim.utils.SimLogger;
 
-public class SampleNetworkModel extends NetworkModel {
+public class ThreeTierNetworkModel extends NetworkModel {
 	public static enum NETWORK_TYPE {WLAN, LAN};
 	public static enum LINK_TYPE {DOWNLOAD, UPLOAD};
 	public static double MAN_BW = 1300*1024; //Kbps
@@ -181,7 +181,7 @@ public class SampleNetworkModel extends NetworkModel {
 		/*25 Clients*/ 1311.131 /*(Kbps)*/
 	};
 	
-	public SampleNetworkModel(int _numberOfMobileDevices, String _simScenario) {
+	public ThreeTierNetworkModel(int _numberOfMobileDevices, String _simScenario) {
 		super(_numberOfMobileDevices, _simScenario);
 	}
 

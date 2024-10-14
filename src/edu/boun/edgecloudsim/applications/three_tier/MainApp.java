@@ -101,7 +101,7 @@ public class MainApp {
 						CloudSim.init(num_user, calendar, trace_flag, 0.01);
 						
 						// Generate EdgeCloudsim Scenario Factory
-						ScenarioFactory sampleFactory = new SampleScenarioFactory(j,SS.getSimulationTime(), orchestratorPolicy, simScenario);
+						ScenarioFactory sampleFactory = new ThreeTierScenarioFactory(j,SS.getSimulationTime(), orchestratorPolicy, simScenario);
 						
 						// Generate EdgeCloudSim Simulation Manager
 						SimManager manager = new SimManager(sampleFactory, j, simScenario, orchestratorPolicy);

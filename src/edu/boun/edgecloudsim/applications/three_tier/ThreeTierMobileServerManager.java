@@ -35,10 +35,10 @@ import edu.boun.edgecloudsim.edge_client.mobile_processing_unit.MobileServerMana
 import edu.boun.edgecloudsim.edge_client.mobile_processing_unit.MobileVM;
 import edu.boun.edgecloudsim.edge_client.mobile_processing_unit.MobileVmAllocationPolicy_Custom;
 
-public class SampleMobileServerManager extends MobileServerManager{
+public class ThreeTierMobileServerManager extends MobileServerManager{
 	private int numOfMobileDevices=0;
 	
-	public SampleMobileServerManager(int _numOfMobileDevices) {
+	public ThreeTierMobileServerManager(int _numOfMobileDevices) {
 		numOfMobileDevices=_numOfMobileDevices;
 	}
 

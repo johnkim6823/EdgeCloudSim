@@ -43,7 +43,7 @@ import edu.boun.edgecloudsim.utils.Location;
 import edu.boun.edgecloudsim.utils.SimLogger;
 
 
-public class SampleMobileDeviceManager extends MobileDeviceManager {
+public class ThreeTierMobileDeviceManager extends MobileDeviceManager {
 	private static final int BASE = 100000; //start from base in order not to conflict cloudsim tag!
 	
 	private static final int UPDATE_MM1_QUEUE_MODEL = BASE + 1;
@@ -60,7 +60,7 @@ public class SampleMobileDeviceManager extends MobileDeviceManager {
 
 	private int taskIdCounter=0;
 	
-	public SampleMobileDeviceManager() throws Exception{
+	public ThreeTierMobileDeviceManager() throws Exception{
 	}
 
 	@Override
@@ -198,7 +198,7 @@ public class SampleMobileDeviceManager extends MobileDeviceManager {
 		switch (ev.getTag()) {
 			case UPDATE_MM1_QUEUE_MODEL:
 			{
-				((SampleNetworkModel)networkModel).updateMM1QueeuModel();
+				((ThreeTierNetworkModel)networkModel).updateMM1QueeuModel();
 				schedule(getId(), MM1_QUEUE_MODEL_UPDATE_INTEVAL, UPDATE_MM1_QUEUE_MODEL);
 	
 				break;
