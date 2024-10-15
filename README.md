@@ -109,32 +109,6 @@ You can also monitor each process via the output files located under *scripts/sa
 ./run_scenarios.sh {# of parallel Processes} {# of iteration}
 tail -f output/date/ite_1.log
 ```
-
-## Analyzing the Results
-At the end of each iteration, simulation results will be compressed in the *output/date/ite_n.tgz* files. When you extract these tgz files, you will see lots of log file in csv format. You can find matlab files which can plot graphics by using these files under *scripts/sample_application/matlab* folder. You can also write other scripts (e.g. python scripts) with the same manner of matlab plotter files.
-
-## Example Output of EdgeCloudSim
-You can plot lots of graphics by using the result of EdgeCloudSim. Some examples are given below:
-
-![Alt text](/doc/images/result1.png?raw=true) ![Alt text](/doc/images/result2.png?raw=true)
-
-![Alt text](/doc/images/result4.png?raw=true) ![Alt text](/doc/images/result5.png?raw=true)
-
-![Alt text](/doc/images/result6.png?raw=true) ![Alt text](/doc/images/result3.png?raw=true)
-
-![Alt text](/doc/images/result7.png?raw=true) ![Alt text](/doc/images/result8.png?raw=true)
-
-## Publications
-**[1]** C. Sonmez, A. Ozgovde and C. Ersoy, "[EdgeCloudSim: An environment for performance evaluation of Edge Computing systems](http://ieeexplore.ieee.org/document/7946405/)," *2017 Second International Conference on Fog and Mobile Edge Computing (FMEC)*, Valencia, 2017, pp. 39-44.
-
-**[2]** C. Sonmez, A. Ozgovde and C. Ersoy, "[Performance evaluation of single-tier and two-tier cloudlet assisted applications](http://ieeexplore.ieee.org/document/7962674/)," *2017 IEEE International Conference on Communications Workshops (ICC Workshops)*, Paris, 2017, pp. 302-307.
-
-**[3]** Sonmez C, Ozgovde A, Ersoy C. "[EdgeCloudSim: An environment for performance evaluation of Edge Computing systems](https://onlinelibrary.wiley.com/doi/abs/10.1002/ett.3493)," *Transactions on Emerging Telecommunications Technologies*, 2018;e3493.
-
-**[4]** C. Sonmez, A. Ozgovde and C. Ersoy, "[Fuzzy Workload Orchestration for Edge Computing](https://ieeexplore.ieee.org/abstract/document/8651335/)," in *IEEE Transactions on Network and Service Management*, vol. 16, no. 2, pp. 769-782, June 2019.
-
-**[5]** C. Sonmez, A. Ozgovde and C. Ersoy, "[Machine Learning-Based Workload Orchestrator for Vehicular Edge Computing](https://ieeexplore.ieee.org/abstract/document/9208723/)," in *IEEE Transactions on Intelligent Transportation Systems*, doi: 10.1109/TITS.2020.3024233.
-
 # To make new scenario
 ## Change following files
 **scripts/{scenario_name}** 
@@ -166,3 +140,26 @@ You can plot lots of graphics by using the result of EdgeCloudSim. Some examples
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | FUZZY_BASED            | - Uses fuzzy logic to make decisions based on various factors.<br>- Inputs: manual delay, nearest edge utilization, best remote edge utilization.<br>- If offload decision > 50, offload to the best remote edge host.<br>- Considers task size, bandwidth, delay sensitivity, and edge utilization for final decision.<br>&nbsp;&nbsp;&nbsp;- Offload to mobile if decision > 60<br>&nbsp;&nbsp;&nbsp;- Offload to cloud if decision between 50 and 60<br>&nbsp;&nbsp;&nbsp;- Otherwise, use the best edge server. |
 | FUZZY_COMPETITOR       | - Competitor-based fuzzy decision making.<br>- Inputs: bandwidth, CPU speed, video execution, and data size.<br>- If offload decision > 60, offload to mobile.<br>&nbsp;&nbsp;&nbsp;- If decision between 50 and 60, offload to cloud.<br>&nbsp;&nbsp;&nbsp;- Otherwise, use the edge server. |
+
+How to Use evalute.py
+1. Change extract_and_categorize_tar(file_path, output_dir)'s Scenario Name
+Update the following line inside the extract_and_categorize_tar() function:
+
+python
+policy_name = next(('_'.join(parts[i + 1:j]) for i, part in enumerate(parts) if part == 'TIER' for j in range(i + 1, len(parts)) if 'DEVICES' in parts[j]), None)
+Modify the condition:
+
+python
+if part == '[]'
+This change ensures that scenarios are correctly named according to the desired format.
+
+2. Modify create_and_save_plot(mean_df, x_col, y_col)'s Policy Legend
+To ensure consistency and clarity in the plot legends, define a fixed order for policies in the legend. Split the legend into two rows for better readability:
+
+python
+first_row_policies = []
+second_row_policies = []
+By doing this, the plot's legend will be more organized, enhancing the overall presentation.
+
+These adjustments aim to enhance the functionality of the evalute.py script and improve the clarity of visual outputs.
+
