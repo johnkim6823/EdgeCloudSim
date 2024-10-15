@@ -168,8 +168,8 @@ public class ThreeTierMobileDeviceManager extends MobileDeviceManager {
 			
 			// 작업이 완료된 후 CPU utilization을 추적하여 로그 남기기
 			double cpuUtilization = task.getUtilizationModelCpu().getUtilization(CloudSim.clock());
-			SimLogger.printLine("Task #" + task.getCloudletId() + " on Mobile Device ID: " + task.getMobileDeviceId() +
-					" finished. CPU Utilization: " + cpuUtilization);
+			// SimLogger.printLine("Task #" + task.getCloudletId() + " on Mobile Device ID: " + task.getMobileDeviceId() +
+			// 		" finished. CPU Utilization: " + cpuUtilization);
 
 			/*
 			 * TODO: D2D 통신을 고려하려면 여기에 D2D delay 계산 및 로그 추가
