@@ -134,12 +134,11 @@ def read_logs(date_evaluation_dir):
     total_unique_policies = len(unique_policies)
     total_unique_categories = len(unique_categories)
 
-    print("\n--- Log Reading Finished ---")
+    print("\n--- Log Reading Finished ---\n")
     print(f"Total ITEs processed: {total_ites}")
     print(f"Unique Policies processed: {total_unique_policies}")
     print(f"Unique Categories processed: {total_unique_categories}")
     print(f"Total log files read: {total_logs}")
-    print("\n" + "-"*50 + "\n")
 
     return log_data
 
@@ -291,8 +290,9 @@ def create_and_save_plot(mean_df, x_col, y_col):
     
     fixed_policy_order = first_row_policies + second_row_policies  # Full list
 
-    # Define colors for plotting
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+    # Define distinct and easy-to-read colors for plotting
+    colors = ['#2b83ba', '#abdda4', '#fdae61', '#d7191c', '#8c564b', '#9467bd', 
+              '#ff7f0e', '#17becf', '#1f77b4', '#bcbd22']  # Updated color palette
 
     # List of metrics to be plotted as line graphs (continuous data)
     line_graph_metrics = [
@@ -329,6 +329,30 @@ def create_and_save_plot(mean_df, x_col, y_col):
             if policy in mean_df['policy_name'].unique():
                 policy_df = mean_df[mean_df['policy_name'] == policy]
 
+                # If the y_col is one of the specific metrics, convert to percentage
+                if y_col in ['num_of_completed_tasks(ALL)', 'num_of_failed_tasks(ALL)', 'num_of_uncompleted_tasks(ALL)']:
+                    # Calculate the total for each x_col value (sum of completed, failed, and uncompleted tasks)
+                    total = (policy_df['num_of_completed_tasks(ALL)'] + 
+                             policy_df['num_of_failed_tasks(ALL)'] + 
+                             policy_df['num_of_uncompleted_tasks(ALL)'])
+
+                    # Avoid division by zero
+                    total[total == 0] = 1
+                    
+                    # Convert current metric to percentage
+                    policy_df[y_col] = (policy_df[y_col] / total) * 100
+
+                # If the y_col is one of the failed task breakdowns, convert to percentage of total failed tasks
+                elif y_col in ['num_of_failed_tasks_due_network(ALL)', 'num_of_failed_tasks_due_vm_capacity(ALL)', 'num_of_failed_tasks_due_mobility(ALL)']:
+                    # Calculate the percentage of failed tasks due to specific reasons
+                    total_failed = policy_df['num_of_failed_tasks(ALL)']
+
+                    # Avoid division by zero
+                    total_failed[total_failed == 0] = 1
+
+                    # Convert current metric to percentage of total failed tasks
+                    policy_df[y_col] = (policy_df[y_col] / total_failed) * 100
+
                 # Align bar positions with x_col values
                 plt.bar(x_positions + i * bar_width, policy_df[y_col], bar_width, label=policy, color=colors[i % len(colors)])
 
@@ -342,7 +366,13 @@ def create_and_save_plot(mean_df, x_col, y_col):
     
     plt.title(formatted_title, fontsize=16, fontweight='bold', pad=20, loc='center')
     plt.xlabel(formatted_x_label, labelpad=10, fontsize=12)
-    plt.ylabel(formatted_y_label, labelpad=10, fontsize=12)
+
+    # Update y-axis label if it is a percentage
+    if y_col in ['num_of_completed_tasks(ALL)', 'num_of_failed_tasks(ALL)', 'num_of_uncompleted_tasks(ALL)', 
+                 'num_of_failed_tasks_due_network(ALL)', 'num_of_failed_tasks_due_vm_capacity(ALL)', 'num_of_failed_tasks_due_mobility(ALL)']:
+        plt.ylabel('Percentage (%)', labelpad=10, fontsize=12)
+    else:
+        plt.ylabel(formatted_y_label, labelpad=10, fontsize=12)
 
     plt.grid(axis='y', linestyle='--', alpha=0.7)
     plt.grid(False, axis='x')
@@ -356,8 +386,6 @@ def create_and_save_plot(mean_df, x_col, y_col):
         ncol=(len(fixed_policy_order) + 1) // 2,  # Split into two rows
         frameon=True
     )
-
-
 
     # Adjust layout for better readability, leaving room for the legend outside the plot
     plt.tight_layout(rect=[0, 0, 1, 0.9])  # Adjust the layout to make room for the legend
@@ -383,8 +411,6 @@ def create_and_save_plot(mean_df, x_col, y_col):
     plt.close()  # Close the figure to free memory
     print(f"Graph saved to {graph_file_name}")
     print("\n" + "-"*50 + "\n")
-
-
 
 def format_graph_title(y_col):
     # Mapping of raw column names to more readable titles
@@ -519,10 +545,20 @@ if __name__ == "__main__":
                         if category in log_data[ite].get(policy, {}):
                             print(f"\n--- Logs for {category} in {policy} of {ite} ---")
 
+                            #Set up the header for tabular display
+                            print(f"{'Log File':<50} {'Devices':<15}")
+                            print('-' * 65)
+
                             for log_file, log_lines in log_data[ite][policy][category].items():
-                                #print(f"\n--- {log_file} ---")
+                                # Extract the 'Devices' information from the log file name
                                 devices = [part.replace('DEVICES', '') for part in log_file.split('_') if 'DEVICES' in part][0]
+                                print(f"{log_file:<50} {devices:<15}")
+
+                                # Call function to process the log data
                                 print_log_line(log_lines[0], data, ite, policy, devices, category)
+
+
+
 
             # Create a DataFrame from the collected data
             df = pd.DataFrame(data)
@@ -564,6 +600,7 @@ if __name__ == "__main__":
             while True:
                 plot_choice = input("Do you want to plot graphs automatically or manually? (a/m): ").lower()
                 if plot_choice == 'a':
+                    print("\n--- Automatic Plotting ---\n")
                     plot_graph(mean_df, auto=True)
                     break
                 elif plot_choice == 'm':
