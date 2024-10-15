@@ -141,7 +141,7 @@ tail -f output/date/ite_1.log
 | FUZZY_BASED            | - Uses fuzzy logic to make decisions based on various factors.<br>- Inputs: manual delay, nearest edge utilization, best remote edge utilization.<br>- If offload decision > 50, offload to the best remote edge host.<br>- Considers task size, bandwidth, delay sensitivity, and edge utilization for final decision.<br>&nbsp;&nbsp;&nbsp;- Offload to mobile if decision > 60<br>&nbsp;&nbsp;&nbsp;- Offload to cloud if decision between 50 and 60<br>&nbsp;&nbsp;&nbsp;- Otherwise, use the best edge server. |
 | FUZZY_COMPETITOR       | - Competitor-based fuzzy decision making.<br>- Inputs: bandwidth, CPU speed, video execution, and data size.<br>- If offload decision > 60, offload to mobile.<br>&nbsp;&nbsp;&nbsp;- If decision between 50 and 60, offload to cloud.<br>&nbsp;&nbsp;&nbsp;- Otherwise, use the edge server. |
 
-How to Use evalute.py
+# How to Use evalute.py
 1. Change extract_and_categorize_tar(file_path, output_dir)'s Scenario Name
 Update the following line inside the extract_and_categorize_tar() function:
 
