@@ -225,7 +225,7 @@ public class FuzzyEdgeOrchestrator extends EdgeOrchestrator {
 				}
 			}
 
-			else if (policy.equals("EDGE_PRIORITY")) {
+			else if (policy.equals("RSAC")) {
 				if (wanBW > 6) {
 					if (edgeUtilization > 90) {
 						result = SimSettings.CLOUD_DATACENTER_ID;

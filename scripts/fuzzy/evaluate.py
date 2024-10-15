@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import matplotlib.ticker as mticker
 
 # Add parent directory to the system path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -172,7 +173,6 @@ def select_option(options, option_name):
     max_width = max(len(option) for option in options) + 2
     format_str = f"{{:<{max_width}}}  |  {{:<{max_width}}}"
 
-    print(f"\nAvailable {option_name}s:\n")
     print(f"0. Process all {option_name.lower()}s")
     for idx in range(0, len(options), 2):
         if idx + 1 < len(options):
@@ -206,8 +206,8 @@ def print_log_line(line, data, ite, policy_name, devices, category):
         index += 1
 
     # Debugging: Print the lengths of all data lists
-    for key, value in data.items():
-        print(f"{key}: {len(value)}")
+    #for key, value in data.items():
+        #print(f"{key}: {len(value)}")
 
 
 def plot_graph(mean_df, auto=False):
@@ -280,113 +280,93 @@ def plot_graph(mean_df, auto=False):
         for y_col in auto_plot_columns:
             create_and_save_plot(mean_df, x_col, y_col)
 
-
 def create_and_save_plot(mean_df, x_col, y_col):
     # Ensure x_col is converted to integer
     mean_df[x_col] = mean_df[x_col].astype(int)
 
-    # Define colors and hatching patterns
+    # Define a fixed legend order for policies, split into two rows
+    first_row_policies = ['ONLY_MOBILE', 'ONLY_EDGE', 'ONLY_CLOUD']
+    second_row_policies = ['NETWORK_BASED', 'UTILIZATION_BASED', 'RANDOM', 
+                           'EDGE_PRIORITY', 'FUZZY_BASED', 'FUZZY_COMPETITOR']
+    
+    fixed_policy_order = first_row_policies + second_row_policies  # Full list
+
+    # Define colors for plotting
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
-    #hatches = ['/', '\\', '|', '-', '+', 'x', 'o', 'O', '.', '*']
 
-    # Plot the bar graph for each policy_name
-    plt.figure(figsize=(10, 6), dpi=300)  # Adjusted figure size and DPI for better readability in papers
-    policies = mean_df['policy_name'].unique()
-    bar_width = 0.15  # Width of the bars
-    positions = np.arange(len(mean_df[x_col].unique()))
+    # List of metrics to be plotted as line graphs (continuous data)
+    line_graph_metrics = [
+        'average_processing_time(ALL)_(sec)', 'average_service_time(ALL)_(sec)',
+        'average_network_delay(ALL)_(sec)', 'average_service_time(Cloud)_(sec)',
+        'average_processing_time(Cloud)_(sec)', 'average_service_time(Edge)_(sec)',
+        'average_processing_time(Edge)_(sec)', 'average_service_time(Mobile)_(sec)',
+        'average_processing_time(Mobile)_(sec)'
+    ]
+    
+    plt.figure(figsize=(12, 8), dpi=300)  # Adjusted figure size and DPI for better readability in papers
+    
+    bar_width = 0.1  # Width of the bars
+    unique_x_values = mean_df[x_col].unique()  # Use the unique x_col values
 
-    for i, policy in enumerate(policies):
-        policy_df = mean_df[mean_df['policy_name'] == policy]
+    # Check if the metric should be a line graph or a bar graph
+    if y_col in line_graph_metrics:
+        # Line graph plotting
+        for i, policy in enumerate(fixed_policy_order):
+            if policy in mean_df['policy_name'].unique():
+                policy_df = mean_df[mean_df['policy_name'] == policy]
 
-        # Plot for ALL
-        if y_col in ['num_of_completed_tasks(ALL)', 'num_of_failed_tasks(ALL)', 'num_of_uncompleted_tasks(ALL)']:
-            total_tasks = policy_df[['num_of_completed_tasks(ALL)', 'num_of_failed_tasks(ALL)', 'num_of_uncompleted_tasks(ALL)']].sum(axis=1)
-            color = colors[i % len(colors)]
-            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
-            plt.bar(positions + i * bar_width, total_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
-        elif y_col in ['average_service_time(ALL)_(sec)', 'average_processing_time(ALL)_(sec)']:
-            total_values = policy_df['average_service_time(ALL)_(sec)']
-            color = colors[i % len(colors)]
-            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
-            plt.bar(positions + i * bar_width, total_values, bar_width, color=darker_color, alpha=0.5)  # No label for total
-        elif y_col in ['num_of_failed_tasks_due_network', 'num_of_failed_tasks_due_vm_capacity(ALL)', 'num_of_failed_tasks_due_mobility(ALL)']:
-            total_failed_tasks = policy_df[['num_of_failed_tasks_due_network', 'num_of_failed_tasks_due_vm_capacity(ALL)', 'num_of_failed_tasks_due_mobility(ALL)']].sum(axis=1)
-            color = colors[i % len(colors)]
-            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
-            plt.bar(positions + i * bar_width, total_failed_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
+                # Plot the data as a line graph
+                plt.plot(policy_df[x_col], policy_df[y_col], label=policy, color=colors[i % len(colors)], marker='o')
 
-        # Plot for Cloud
-        elif y_col in ['num_of_completed_tasks(Cloud)', 'num_of_failed_tasks(Cloud)', 'num_of_uncompleted_tasks(Cloud)']:
-            total_tasks = policy_df[['num_of_completed_tasks(Cloud)', 'num_of_failed_tasks(Cloud)', 'num_of_uncompleted_tasks(Cloud)']].sum(axis=1)
-            color = colors[i % len(colors)]
-            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
-            plt.bar(positions + i * bar_width, total_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
-        elif y_col in ['average_service_time(Cloud)_(sec)', 'average_processing_time(Cloud)_(sec)']:
-            total_values = policy_df['average_service_time(Cloud)_(sec)']
-            color = colors[i % len(colors)]
-            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
-            plt.bar(positions + i * bar_width, total_values, bar_width, color=darker_color, alpha=0.5)  # No label for total
-        elif y_col in ['num_of_failed_tasks_due_vm_capacity(Cloud)']:
-            total_failed_tasks = policy_df[['num_of_failed_tasks_due_vm_capacity(Cloud)']].sum(axis=1)
-            color = colors[i % len(colors)]
-            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
-            plt.bar(positions + i * bar_width, total_failed_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
-        
-        # Plot for Edge
-        elif y_col in ['num_of_completed_tasks(Edge)', 'num_of_failed_tasks(Edge)', 'num_of_uncompleted_tasks(Edge)']:
-            total_tasks = policy_df[['num_of_completed_tasks(Edge)', 'num_of_failed_tasks(Edge)', 'num_of_uncompleted_tasks(Edge)']].sum(axis=1)
-            color = colors[i % len(colors)]
-            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
-            plt.bar(positions + i * bar_width, total_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
-        elif y_col in ['average_service_time(Edge)_(sec)', 'average_processing_time(Edge)_(sec)']:
-            total_values = policy_df['average_service_time(Edge)_(sec)']
-            color = colors[i % len(colors)]
-            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
-            plt.bar(positions + i * bar_width, total_values, bar_width, color=darker_color, alpha=0.5)  # No label for total
-        elif y_col in ['num_of_failed_tasks_due_vm_capacity(Edge)']:
-            total_failed_tasks = policy_df[['num_of_failed_tasks_due_vm_capacity(Edge)']].sum(axis=1)
-            color = colors[i % len(colors)]
-            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
-            plt.bar(positions + i * bar_width, total_failed_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
+        # Set the x-axis ticks for line graph (positions and labels)
+        plt.xticks(unique_x_values, fontsize=10)
 
-        # Plot for Mobile
-        elif y_col in ['num_of_completed_tasks(Mobile)', 'num_of_failed_tasks(Mobile)', 'num_of_uncompleted_tasks(Mobile)']:
-            total_tasks = policy_df[['num_of_completed_tasks(Mobile)', 'num_of_failed_tasks(Mobile)', 'num_of_uncompleted_tasks(Mobile)']].sum(axis=1)
-            color = colors[i % len(colors)]
-            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
-            plt.bar(positions + i * bar_width, total_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
-        elif y_col in ['average_service_time(Mobile)_(sec)', 'average_processing_time(Mobile)_(sec)']:
-            total_values = policy_df['average_service_time(Mobile)_(sec)']
-            color = colors[i % len(colors)]
-            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
-            plt.bar(positions + i * bar_width, total_values, bar_width, color=darker_color, alpha=0.5)  # No label for total
-        elif y_col in ['num_of_failed_tasks_due_vm_capacity(Mobile)']:
-            total_failed_tasks = policy_df[['num_of_failed_tasks_due_vm_capacity(Mobile)']].sum(axis=1)
-            color = colors[i % len(colors)]
-            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
-            plt.bar(positions + i * bar_width, total_failed_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
+    else:
+        # Bar graph plotting
+        x_positions = np.arange(len(unique_x_values))  # Create positions for the bars
 
-        plt.bar(positions + i * bar_width, policy_df[y_col], bar_width, label=policy, color=colors[i % len(colors)])
-        #plt.bar(positions + i * bar_width, policy_df[y_col], bar_width, label=policy, color=colors[i % len(colors)], hatch=hatches[i % len(hatches)])
+        for i, policy in enumerate(fixed_policy_order):
+            if policy in mean_df['policy_name'].unique():
+                policy_df = mean_df[mean_df['policy_name'] == policy]
 
-    # Set the positions and labels of the x ticks
-    x_positions = positions + bar_width * (len(policies) - 1) / 2
-    plt.xticks(x_positions, mean_df[x_col].unique().astype(int), ha='center', fontsize=10)
-    plt.yticks(fontsize=10)
+                # Align bar positions with x_col values
+                plt.bar(x_positions + i * bar_width, policy_df[y_col], bar_width, label=policy, color=colors[i % len(colors)])
 
-    plt.xlabel(x_col, labelpad=10, fontsize=12)
-    plt.ylabel(y_col, labelpad=10, fontsize=12)
+        # Set the x-axis ticks for bar graph (positions and labels)
+        plt.xticks(x_positions + bar_width * (len(fixed_policy_order) - 1) / 2, labels=unique_x_values, fontsize=10, ha='center')
+    
+    # Improve title and axis labels readability
+    formatted_title = format_graph_title(y_col)
+    formatted_x_label = format_axis_label(x_col, axis="x")
+    formatted_y_label = format_axis_label(y_col, axis="y")
+    
+    plt.title(formatted_title, fontsize=16, fontweight='bold', pad=20, loc='center')
+    plt.xlabel(formatted_x_label, labelpad=10, fontsize=12)
+    plt.ylabel(formatted_y_label, labelpad=10, fontsize=12)
+
     plt.grid(axis='y', linestyle='--', alpha=0.7)
     plt.grid(False, axis='x')
-    plt.title(f'{y_col} per {x_col}', fontsize=16, fontweight='bold', pad=20, loc='center')
-    plt.legend()
 
-    # Adjust layout for better readability
-    plt.tight_layout()
+    # Set the legend outside the plot, below the title
+    plt.legend(
+        fixed_policy_order, 
+        loc='upper center', 
+        bbox_to_anchor=(0.5, -0.2),  # Adjust to place the legend below the plot
+        fontsize=9, 
+        ncol=(len(fixed_policy_order) + 1) // 2,  # Split into two rows
+        frameon=True
+    )
 
-    # Determine the folder to save the graph based on the y_col
+
+
+    # Adjust layout for better readability, leaving room for the legend outside the plot
+    plt.tight_layout(rect=[0, 0, 1, 0.9])  # Adjust the layout to make room for the legend
+
+    # Correct the folder assignment
     if 'ALL' in y_col:
         folder = 'ALL'
+    elif 'Cloud' in y_col:  # Adding condition for 'Cloud'
+        folder = 'CLOUD'
     elif 'Edge' in y_col:
         folder = 'EDGE'
     elif 'Mobile' in y_col:
@@ -403,6 +383,85 @@ def create_and_save_plot(mean_df, x_col, y_col):
     plt.close()  # Close the figure to free memory
     print(f"Graph saved to {graph_file_name}")
     print("\n" + "-"*50 + "\n")
+
+
+
+def format_graph_title(y_col):
+    # Mapping of raw column names to more readable titles
+    title_mappings = {
+        'average_processing_time(ALL)_(sec)': 'Average Processing Time (All) (sec)',
+        'average_service_time(ALL)_(sec)': 'Average Service Time (All) (sec)',
+        'average_network_delay(ALL)_(sec)': 'Average Network Delay (All) (sec)',
+        'average_service_time(Cloud)_(sec)': 'Average Service Time (Cloud) (sec)',
+        'average_processing_time(Cloud)_(sec)': 'Average Processing Time (Cloud) (sec)',
+        'average_service_time(Edge)_(sec)': 'Average Service Time (Edge) (sec)',
+        'average_processing_time(Edge)_(sec)': 'Average Processing Time (Edge) (sec)',
+        'average_service_time(Mobile)_(sec)': 'Average Service Time (Mobile) (sec)',
+        'average_processing_time(Mobile)_(sec)': 'Average Processing Time (Mobile) (sec)',
+        'num_of_completed_tasks(ALL)': 'Number of Completed Tasks (All)',
+        'num_of_failed_tasks(ALL)': 'Number of Failed Tasks (All)',
+        'num_of_uncompleted_tasks(ALL)': 'Number of Uncompleted Tasks (All)',
+        'num_of_completed_tasks(Cloud)': 'Number of Completed Tasks (Cloud)',
+        'num_of_failed_tasks(Cloud)': 'Number of Failed Tasks (Cloud)',
+        'num_of_uncompleted_tasks(Cloud)': 'Number of Uncompleted Tasks (Cloud)',
+        'num_of_completed_tasks(Edge)': 'Number of Completed Tasks (Edge)',
+        'num_of_failed_tasks(Edge)': 'Number of Failed Tasks (Edge)',
+        'num_of_uncompleted_tasks(Edge)': 'Number of Uncompleted Tasks (Edge)',
+        'num_of_completed_tasks(Mobile)': 'Number of Completed Tasks (Mobile)',
+        'num_of_failed_tasks(Mobile)': 'Number of Failed Tasks (Mobile)',
+        'num_of_uncompleted_tasks(Mobile)': 'Number of Uncompleted Tasks (Mobile)',
+        'num_of_failed_tasks_due_network(ALL)': 'Number of Failed Tasks Due to Network (All)',
+        'num_of_failed_tasks_due_vm_capacity(ALL)': 'Number of Failed Tasks Due to VM Capacity (All)',
+        'num_of_failed_tasks_due_mobility(ALL)': 'Number of Failed Tasks Due to Mobility (All)',
+        'num_of_failed_tasks_due_network(Cloud)': 'Number of Failed Tasks Due to Network (Cloud)',
+        'num_of_failed_tasks_due_vm_capacity(Cloud)': 'Number of Failed Tasks Due to VM Capacity (Cloud)',
+        'num_of_failed_tasks_due_network(Edge)': 'Number of Failed Tasks Due to Network (Edge)',
+        'num_of_failed_tasks_due_vm_capacity(Edge)': 'Number of Failed Tasks Due to VM Capacity (Edge)',
+        'num_of_failed_tasks_due_network(Mobile)': 'Number of Failed Tasks Due to Network (Mobile)',
+        'num_of_failed_tasks_due_vm_capacity(Mobile)': 'Number of Failed Tasks Due to VM Capacity (Mobile)'
+    }
+    
+    # Return the formatted title based on the y_col
+    return title_mappings.get(y_col, y_col)  # Default to y_col if no mapping found
+
+def format_axis_label(label, axis="x"):
+    # Mapping of raw column names to more readable axis labels
+    label_mappings = {
+        'devices': 'Number of Devices',
+        'average_processing_time(ALL)_(sec)': 'Processing Time (sec)',
+        'average_service_time(ALL)_(sec)': 'Service Time (sec)',
+        'average_network_delay(ALL)_(sec)': 'Network Delay (sec)',
+        'average_service_time(Cloud)_(sec)': 'Cloud Service Time (sec)',
+        'average_processing_time(Cloud)_(sec)': 'Cloud Processing Time (sec)',
+        'average_service_time(Edge)_(sec)': 'Edge Service Time (sec)',
+        'average_processing_time(Edge)_(sec)': 'Edge Processing Time (sec)',
+        'average_service_time(Mobile)_(sec)': 'Mobile Service Time (sec)',
+        'average_processing_time(Mobile)_(sec)': 'Mobile Processing Time (sec)',
+        'num_of_completed_tasks(ALL)': 'Completed Tasks',
+        'num_of_failed_tasks(ALL)': 'Failed Tasks',
+        'num_of_uncompleted_tasks(ALL)': 'Uncompleted Tasks',
+        'num_of_completed_tasks(Cloud)': 'Completed Tasks (Cloud)',
+        'num_of_failed_tasks(Cloud)': 'Failed Tasks (Cloud)',
+        'num_of_uncompleted_tasks(Cloud)': 'Uncompleted Tasks (Cloud)',
+        'num_of_completed_tasks(Edge)': 'Completed Tasks (Edge)',
+        'num_of_failed_tasks(Edge)': 'Failed Tasks (Edge)',
+        'num_of_uncompleted_tasks(Edge)': 'Uncompleted Tasks (Edge)',
+        'num_of_completed_tasks(Mobile)': 'Completed Tasks (Mobile)',
+        'num_of_failed_tasks(Mobile)': 'Failed Tasks (Mobile)',
+        'num_of_uncompleted_tasks(Mobile)': 'Uncompleted Tasks (Mobile)',
+        'num_of_failed_tasks_due_network(ALL)': 'Failed Tasks (Network)',
+        'num_of_failed_tasks_due_vm_capacity(ALL)': 'Failed Tasks (VM Capacity)',
+        'num_of_failed_tasks_due_mobility(ALL)': 'Failed Tasks (Mobility)',
+        'num_of_failed_tasks_due_network(Cloud)': 'Failed Tasks (Network - Cloud)',
+        'num_of_failed_tasks_due_vm_capacity(Cloud)': 'Failed Tasks (VM Capacity - Cloud)',
+        'num_of_failed_tasks_due_network(Edge)': 'Failed Tasks (Network - Edge)',
+        'num_of_failed_tasks_due_vm_capacity(Edge)': 'Failed Tasks (VM Capacity - Edge)',
+        'num_of_failed_tasks_due_network(Mobile)': 'Failed Tasks (Network - Mobile)',
+        'num_of_failed_tasks_due_vm_capacity(Mobile)': 'Failed Tasks (VM Capacity - Mobile)'
+    }
+    
+    # Return the formatted label for the x or y axis
+    return label_mappings.get(label, label)  # Default to label if no mapping found
 
 
 if __name__ == "__main__":
@@ -461,7 +520,7 @@ if __name__ == "__main__":
                             print(f"\n--- Logs for {category} in {policy} of {ite} ---")
 
                             for log_file, log_lines in log_data[ite][policy][category].items():
-                                print(f"\n--- {log_file} ---")
+                                #print(f"\n--- {log_file} ---")
                                 devices = [part.replace('DEVICES', '') for part in log_file.split('_') if 'DEVICES' in part][0]
                                 print_log_line(log_lines[0], data, ite, policy, devices, category)
 
