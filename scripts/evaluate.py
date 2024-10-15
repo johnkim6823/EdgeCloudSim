@@ -285,84 +285,101 @@ def create_and_save_plot(mean_df, x_col, y_col):
     # Ensure x_col is converted to integer
     mean_df[x_col] = mean_df[x_col].astype(int)
 
-    # NaN 값을 처리합니다: NaN이 있으면 0으로 대체
-    mean_df[y_col].fillna(0, inplace=True)
-
     # Define colors and hatching patterns
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
-    hatches = ['/', '\\', '|', '-', '+', 'x', 'o', 'O', '.', '*']
+    #hatches = ['/', '\\', '|', '-', '+', 'x', 'o', 'O', '.', '*']
 
-    # Bar width for bar graphs
-    bar_width = 0.15
-    positions = np.arange(len(mean_df[x_col].unique()))
-    policies = mean_df['policy_name'].unique()
-
-    # Define the type of graphs for each metric
-    bar_metrics = [
-        'num_of_completed_tasks(ALL)', 'num_of_failed_tasks(ALL)', 'num_of_uncompleted_tasks(ALL)',
-        'num_of_completed_tasks(Cloud)', 'num_of_failed_tasks(Cloud)', 'num_of_uncompleted_tasks(Cloud)',
-        'num_of_completed_tasks(Edge)', 'num_of_failed_tasks(Edge)', 'num_of_uncompleted_tasks(Edge)',
-        'num_of_completed_tasks(Mobile)', 'num_of_failed_tasks(Mobile)', 'num_of_uncompleted_tasks(Mobile)'
-    ]
-    line_metrics = [
-        'average_service_time(ALL)_(sec)', 'average_processing_time(ALL)_(sec)', 'average_network_delay(ALL)_(sec)',
-        'average_service_time(Cloud)_(sec)', 'average_processing_time(Cloud)_(sec)',
-        'average_service_time(Edge)_(sec)', 'average_processing_time(Edge)_(sec)',
-        'average_service_time(Mobile)_(sec)', 'average_processing_time(Mobile)_(sec)'
-    ]
-    pie_metrics = [
-        'num_of_failed_tasks_due_network(ALL)', 'num_of_failed_tasks_due_vm_capacity(ALL)', 'num_of_failed_tasks_due_mobility(ALL)',
-        'num_of_failed_tasks_due_vm_capacity(Cloud)', 'num_of_failed_tasks_due_vm_capacity(Edge)', 'num_of_failed_tasks_due_vm_capacity(Mobile)'
-    ]
-
+    # Plot the bar graph for each policy_name
     plt.figure(figsize=(10, 6), dpi=300)  # Adjusted figure size and DPI for better readability in papers
+    policies = mean_df['policy_name'].unique()
+    bar_width = 0.15  # Width of the bars
+    positions = np.arange(len(mean_df[x_col].unique()))
 
-    # Bar Chart
-    if y_col in bar_metrics:
-        for i, policy in enumerate(policies):
-            policy_df = mean_df[mean_df['policy_name'] == policy]
-            plt.bar(positions + i * bar_width, policy_df[y_col], bar_width, label=policy, color=colors[i % len(colors)], hatch=hatches[i % len(hatches)])
-            
-            # Add text to bars (even for zero values)
-            for j, value in enumerate(policy_df[y_col]):
-                plt.text(positions[j] + i * bar_width, value + 0.05, f'{value:.0f}', ha='center', va='bottom')
+    for i, policy in enumerate(policies):
+        policy_df = mean_df[mean_df['policy_name'] == policy]
 
-    # Line Chart
-    elif y_col in line_metrics:
-        for i, policy in enumerate(policies):
-            policy_df = mean_df[mean_df['policy_name'] == policy]
-            plt.plot(policy_df[x_col], policy_df[y_col], label=policy, marker='o', color=colors[i % len(colors)])
-            
-            # Add text to points (even for zero values)
-            for j, value in enumerate(policy_df[y_col]):
-                plt.text(policy_df[x_col].values[j], value, f'{value:.0f}', ha='center', va='bottom')
+        # Plot for ALL
+        if y_col in ['num_of_completed_tasks(ALL)', 'num_of_failed_tasks(ALL)', 'num_of_uncompleted_tasks(ALL)']:
+            total_tasks = policy_df[['num_of_completed_tasks(ALL)', 'num_of_failed_tasks(ALL)', 'num_of_uncompleted_tasks(ALL)']].sum(axis=1)
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
+        elif y_col in ['average_service_time(ALL)_(sec)', 'average_processing_time(ALL)_(sec)']:
+            total_values = policy_df['average_service_time(ALL)_(sec)']
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_values, bar_width, color=darker_color, alpha=0.5)  # No label for total
+        elif y_col in ['num_of_failed_tasks_due_network', 'num_of_failed_tasks_due_vm_capacity(ALL)', 'num_of_failed_tasks_due_mobility(ALL)']:
+            total_failed_tasks = policy_df[['num_of_failed_tasks_due_network', 'num_of_failed_tasks_due_vm_capacity(ALL)', 'num_of_failed_tasks_due_mobility(ALL)']].sum(axis=1)
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_failed_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
 
-    # Pie Chart (applies only to one policy at a time, since pie chart doesn't handle multiple series well)
-    elif y_col in pie_metrics:
-        for i, policy in enumerate(policies):
-            policy_df = mean_df[mean_df['policy_name'] == policy]
-            total_value = policy_df[y_col].sum()
-            
-            # Even if all values are zero, create a pie chart with a message
-            if total_value == 0:
-                plt.pie([1], labels=["0"], colors=['lightgrey'], startangle=90)
-            else:
-                plt.pie(policy_df[y_col], labels=policy_df[x_col], colors=colors[:len(policy_df)], autopct='%1.1f%%')
+        # Plot for Cloud
+        elif y_col in ['num_of_completed_tasks(Cloud)', 'num_of_failed_tasks(Cloud)', 'num_of_uncompleted_tasks(Cloud)']:
+            total_tasks = policy_df[['num_of_completed_tasks(Cloud)', 'num_of_failed_tasks(Cloud)', 'num_of_uncompleted_tasks(Cloud)']].sum(axis=1)
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
+        elif y_col in ['average_service_time(Cloud)_(sec)', 'average_processing_time(Cloud)_(sec)']:
+            total_values = policy_df['average_service_time(Cloud)_(sec)']
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_values, bar_width, color=darker_color, alpha=0.5)  # No label for total
+        elif y_col in ['num_of_failed_tasks_due_vm_capacity(Cloud)']:
+            total_failed_tasks = policy_df[['num_of_failed_tasks_due_vm_capacity(Cloud)']].sum(axis=1)
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_failed_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
+        
+        # Plot for Edge
+        elif y_col in ['num_of_completed_tasks(Edge)', 'num_of_failed_tasks(Edge)', 'num_of_uncompleted_tasks(Edge)']:
+            total_tasks = policy_df[['num_of_completed_tasks(Edge)', 'num_of_failed_tasks(Edge)', 'num_of_uncompleted_tasks(Edge)']].sum(axis=1)
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
+        elif y_col in ['average_service_time(Edge)_(sec)', 'average_processing_time(Edge)_(sec)']:
+            total_values = policy_df['average_service_time(Edge)_(sec)']
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_values, bar_width, color=darker_color, alpha=0.5)  # No label for total
+        elif y_col in ['num_of_failed_tasks_due_vm_capacity(Edge)']:
+            total_failed_tasks = policy_df[['num_of_failed_tasks_due_vm_capacity(Edge)']].sum(axis=1)
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_failed_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
 
-    else:
-        print(f"Metric {y_col} not recognized for plotting.")
-        return
+        # Plot for Mobile
+        elif y_col in ['num_of_completed_tasks(Mobile)', 'num_of_failed_tasks(Mobile)', 'num_of_uncompleted_tasks(Mobile)']:
+            total_tasks = policy_df[['num_of_completed_tasks(Mobile)', 'num_of_failed_tasks(Mobile)', 'num_of_uncompleted_tasks(Mobile)']].sum(axis=1)
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
+        elif y_col in ['average_service_time(Mobile)_(sec)', 'average_processing_time(Mobile)_(sec)']:
+            total_values = policy_df['average_service_time(Mobile)_(sec)']
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_values, bar_width, color=darker_color, alpha=0.5)  # No label for total
+        elif y_col in ['num_of_failed_tasks_due_vm_capacity(Mobile)']:
+            total_failed_tasks = policy_df[['num_of_failed_tasks_due_vm_capacity(Mobile)']].sum(axis=1)
+            color = colors[i % len(colors)]
+            darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
+            plt.bar(positions + i * bar_width, total_failed_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
 
-    # Common plot settings for bar and line graphs
-    if y_col not in pie_metrics:
-        x_positions = positions + bar_width * (len(policies) - 1) / 2
-        plt.xticks(x_positions, mean_df[x_col].unique().astype(int), ha='center', fontsize=10)
-        plt.yticks(fontsize=10)
-        plt.xlabel(x_col, labelpad=10, fontsize=12)
-        plt.ylabel(y_col, labelpad=10, fontsize=12)
-        plt.grid(axis='y', linestyle='--', alpha=0.7)
-        plt.title(f'{y_col} per {x_col}', fontsize=16, fontweight='bold', pad=20, loc='center')
-        plt.legend()
+        plt.bar(positions + i * bar_width, policy_df[y_col], bar_width, label=policy, color=colors[i % len(colors)])
+        #plt.bar(positions + i * bar_width, policy_df[y_col], bar_width, label=policy, color=colors[i % len(colors)], hatch=hatches[i % len(hatches)])
+
+    # Set the positions and labels of the x ticks
+    x_positions = positions + bar_width * (len(policies) - 1) / 2
+    plt.xticks(x_positions, mean_df[x_col].unique().astype(int), ha='center', fontsize=10)
+    plt.yticks(fontsize=10)
+
+    plt.xlabel(x_col, labelpad=10, fontsize=12)
+    plt.ylabel(y_col, labelpad=10, fontsize=12)
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.grid(False, axis='x')
+    plt.title(f'{y_col} per {x_col}', fontsize=16, fontweight='bold', pad=20, loc='center')
+    plt.legend()
 
     # Adjust layout for better readability
     plt.tight_layout()
@@ -370,8 +387,6 @@ def create_and_save_plot(mean_df, x_col, y_col):
     # Determine the folder to save the graph based on the y_col
     if 'ALL' in y_col:
         folder = 'ALL'
-    elif 'Cloud' in y_col:
-        folder = 'CLOUD'
     elif 'Edge' in y_col:
         folder = 'EDGE'
     elif 'Mobile' in y_col:
@@ -387,8 +402,7 @@ def create_and_save_plot(mean_df, x_col, y_col):
     plt.savefig(graph_file_name, bbox_inches='tight')  # Use bbox_inches='tight' for better layout
     plt.close()  # Close the figure to free memory
     print(f"Graph saved to {graph_file_name}")
-    print("\n" + "-" * 50 + "\n")
-
+    print("\n" + "-"*50 + "\n")
 
 
 if __name__ == "__main__":

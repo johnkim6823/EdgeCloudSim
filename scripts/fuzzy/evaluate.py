@@ -309,13 +309,13 @@ def create_and_save_plot(mean_df, x_col, y_col):
             color = colors[i % len(colors)]
             darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
             plt.bar(positions + i * bar_width, total_values, bar_width, color=darker_color, alpha=0.5)  # No label for total
-        elif y_col in ['num_of_failed_tasks_due_network', 'num_of_failed_tasks_due_vm_capacity(ALL)', 'num_of_failed_tasks_due_mobility']:
-            total_failed_tasks = policy_df[['num_of_failed_tasks_due_network', 'num_of_failed_tasks_due_vm_capacity(ALL)', 'num_of_failed_tasks_due_mobility']].sum(axis=1)
+        elif y_col in ['num_of_failed_tasks_due_network', 'num_of_failed_tasks_due_vm_capacity(ALL)', 'num_of_failed_tasks_due_mobility(ALL)']:
+            total_failed_tasks = policy_df[['num_of_failed_tasks_due_network', 'num_of_failed_tasks_due_vm_capacity(ALL)', 'num_of_failed_tasks_due_mobility(ALL)']].sum(axis=1)
             color = colors[i % len(colors)]
             darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
             plt.bar(positions + i * bar_width, total_failed_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
 
-        # Plot for Edge
+        # Plot for Cloud
         elif y_col in ['num_of_completed_tasks(Cloud)', 'num_of_failed_tasks(Cloud)', 'num_of_uncompleted_tasks(Cloud)']:
             total_tasks = policy_df[['num_of_completed_tasks(Cloud)', 'num_of_failed_tasks(Cloud)', 'num_of_uncompleted_tasks(Cloud)']].sum(axis=1)
             color = colors[i % len(colors)]
@@ -366,7 +366,8 @@ def create_and_save_plot(mean_df, x_col, y_col):
             darker_color = (np.array(mcolors.to_rgb(color)) * 0.6).tolist()
             plt.bar(positions + i * bar_width, total_failed_tasks, bar_width, color=darker_color, alpha=0.5)  # No label for total
 
-        plt.bar(positions + i * bar_width, policy_df[y_col], bar_width, label=policy, color=colors[i % len(colors)], hatch=hatches[i % len(hatches)])
+        plt.bar(positions + i * bar_width, policy_df[y_col], bar_width, label=policy, color=colors[i % len(colors)])
+        #plt.bar(positions + i * bar_width, policy_df[y_col], bar_width, label=policy, color=colors[i % len(colors)], hatch=hatches[i % len(hatches)])
 
     # Set the positions and labels of the x ticks
     x_positions = positions + bar_width * (len(policies) - 1) / 2
