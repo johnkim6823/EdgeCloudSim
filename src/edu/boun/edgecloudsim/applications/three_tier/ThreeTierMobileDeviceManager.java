@@ -167,7 +167,7 @@ public class ThreeTierMobileDeviceManager extends MobileDeviceManager {
 			SimLogger.getInstance().taskEnded(task.getCloudletId(), CloudSim.clock());
 			
 			// 작업이 완료된 후 CPU utilization을 추적하여 로그 남기기
-			double cpuUtilization = task.getUtilizationModelCpu().getUtilization(CloudSim.clock());
+			//double cpuUtilization = task.getUtilizationModelCpu().getUtilization(CloudSim.clock());
 			// SimLogger.printLine("Task #" + task.getCloudletId() + " on Mobile Device ID: " + task.getMobileDeviceId() +
 			// 		" finished. CPU Utilization: " + cpuUtilization);
 
