@@ -37,4 +37,4 @@ output*
 #venv
 venv
 
-*vscode
+.vscode
