@@ -416,12 +416,6 @@ public class ThreeTierMobileDeviceManager extends MobileDeviceManager {
 				task.getAssociatedVmId(),
 				vmType.ordinal());
 
-		// CPU utilization 로그를 기록하는 부분 추가
-		// if (vmType == SimSettings.VM_TYPES.MOBILE_VM) {
-		// 	double cpuUtilization = task.getUtilizationModelCpu().getUtilization(CloudSim.clock());
-		// 	SimLogger.printLine(
-		// 			"Mobile Device ID: " + task.getMobileDeviceId() + ", CPU Utilization: " + cpuUtilization);
-		// }
 	}
 	
 	private Task createTask(TaskProperty edgeTask){
