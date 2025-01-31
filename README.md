@@ -134,32 +134,39 @@ tail -f output/date/ite_1.log
 | RANDOM                 | - Randomly assigns tasks to one of the following:<br>&nbsp;&nbsp;&nbsp;- Mobile device<br>&nbsp;&nbsp;&nbsp;- Edge server<br>&nbsp;&nbsp;&nbsp;- Cloud. |
 | EDGE_PRIORITY          | - Prioritizes the edge server.<br>- If bandwidth > 6:<br>&nbsp;&nbsp;&nbsp;- Offload to edge server if utilization ≤ 90%<br>&nbsp;&nbsp;&nbsp;- Offload to cloud if edge utilization > 90%.<br>- If bandwidth > 3:<br>&nbsp;&nbsp;&nbsp;- Offload to cloud if edge utilization > 90%<br>&nbsp;&nbsp;&nbsp;- Offload to mobile if edge utilization < 20%<br>&nbsp;&nbsp;&nbsp;- Otherwise, offload to edge server.<br>- If bandwidth ≤ 3: keep task on mobile. |
 
+# evaluate.py
 
-## Fuzzy
-| Policy                | Description                                                                                                                                                           |
-|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| FUZZY_BASED            | - Uses fuzzy logic to make decisions based on various factors.<br>- Inputs: manual delay, nearest edge utilization, best remote edge utilization.<br>- If offload decision > 50, offload to the best remote edge host.<br>- Considers task size, bandwidth, delay sensitivity, and edge utilization for final decision.<br>&nbsp;&nbsp;&nbsp;- Offload to mobile if decision > 60<br>&nbsp;&nbsp;&nbsp;- Offload to cloud if decision between 50 and 60<br>&nbsp;&nbsp;&nbsp;- Otherwise, use the best edge server. |
-| FUZZY_COMPETITOR       | - Competitor-based fuzzy decision making.<br>- Inputs: bandwidth, CPU speed, video execution, and data size.<br>- If offload decision > 60, offload to mobile.<br>&nbsp;&nbsp;&nbsp;- If decision between 50 and 60, offload to cloud.<br>&nbsp;&nbsp;&nbsp;- Otherwise, use the edge server. |
+## Overview
+`evaluate.py` processes simulation results (specifically, `.tar.gz` and `.log` files) generated under `output/<DATE>/default_config/`.  
+It organizes and extracts logs into a structured folder hierarchy, converts them into a single-line format, aggregates the data into CSV files (raw, sorted, mean), and produces various plots automatically or manually.
 
-# How to Use evalute.py
-1. Change extract_and_categorize_tar(file_path, output_dir)'s Scenario Name
-Update the following line inside the extract_and_categorize_tar() function:
+---
 
-python
-policy_name = next(('_'.join(parts[i + 1:j]) for i, part in enumerate(parts) if part == 'TIER' for j in range(i + 1, len(parts)) if 'DEVICES' in parts[j]), None)
-Modify the condition:
+## Workflow
 
-python
-if part == '[]'
-This change ensures that scenarios are correctly named according to the desired format.
+1. **Select a Date Folder**  
+   - Reads all subfolders in `output/` that match the date format.  
+   - Prompts the user to choose one (or pick `0` for the latest date).
 
-2. Modify create_and_save_plot(mean_df, x_col, y_col)'s Policy Legend
-To ensure consistency and clarity in the plot legends, define a fixed order for policies in the legend. Split the legend into two rows for better readability:
+2. **Create Result Structure**  
+   - Automatically creates `results/<DATE>/logs` and `results/<DATE>/graph`.  
+   - This is where logs are reorganized and final outputs (CSV, plots) are stored.
 
-python
-first_row_policies = []
-second_row_policies = []
-By doing this, the plot's legend will be more organized, enhancing the overall presentation.
+3. **Extract & Categorize Logs**  
+   - Copies and extracts (`.tar.gz`) files into the logs folder.  
+   - Looks for `.log` files and categorizes them under a folder structure based on **Policy** and **Category**.
 
-These adjustments aim to enhance the functionality of the evalute.py script and improve the clarity of visual outputs.
+4. **Load and Filter Logs**  
+   - Reads each `.log` into a Pandas DataFrame.  
+   - Offers menu selections to filter by ITE, Policy, Category, or select `ALL`.
+
+5. **Save CSV Files**  
+   - Creates **raw**, **sorted**, and **mean** CSV files under `results/<DATE>/logs/csv`.
+
+6. **Plot Generation**  
+   - **Automatic Mode**: Generates a predefined set of (x, y) plots (usually `x = devices` and various `y` metrics).  
+   - **Manual Mode**: User picks columns for X and Y axes interactively.  
+   - Saves `.png` plots and their respective data (`.csv`) under `results/<DATE>/graph`.
+
+---
 

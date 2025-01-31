@@ -37,4 +37,11 @@ output*
 #venv
 venv
 
+#vscode
 .vscode
+
+#simulation results
+results
+
+#bak files
+*bak
