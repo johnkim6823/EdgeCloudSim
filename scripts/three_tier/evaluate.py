@@ -7,40 +7,107 @@ from natsort import natsorted
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import matplotlib.ticker as mticker
-import matplotlib.patheffects as path_effects
-import matplotlib
 import scienceplots
-import matplotlib.font_manager as fm
-
 
 plt.style.use(['science', 'ieee', 'no-latex'])
-plt.style.use(['science', 'ieee', 'no-latex'])
-
-
 
 # Add parent directory to the system path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from index_mapping import all_apps_generic
 
-
-def create_evaluation_folder():
-    # Create evaluation folder if it does not exist
-    evaluation_dir = os.path.join(os.getcwd(), 'evaluation')
-    os.makedirs(evaluation_dir, exist_ok=True)
-    return evaluation_dir
-
-
-def remove_and_create_date_folder(date_dir):
-    # Remove existing date folder and create a new one
-    if os.path.exists(date_dir):
-        shutil.rmtree(date_dir)
-    os.makedirs(date_dir, exist_ok=True)
+###############################################################################
+# 전역 폴더명 상수
+###############################################################################
+RESULTS_FOLDER_NAME = "results"  # logs/graph 가 들어갈 최상위 폴더
+LOGS_SUBFOLDER_NAME = "logs"
+GRAPH_SUBFOLDER_NAME = "graph"
 
 
+###############################################################################
+# 1. 날짜 폴더 선택 관련
+###############################################################################
+def get_available_date_folders(base_path="output"):
+    try:
+        date_folders = [f for f in os.listdir(base_path) if os.path.isdir(os.path.join(base_path, f))]
+        if not date_folders:
+            print("Error: No date folders found in /output.")
+            sys.exit(1)
+        return natsorted(date_folders)
+    except Exception as e:
+        print(f"Error: Unable to read /output directory: {e}")
+        sys.exit(1)
+
+
+def select_date_folder(date_folders):
+    print("\nAvailable Date Folders:")
+    print("-" * 50)
+    print("0. (Auto) Use Latest Date")
+
+    for idx, date in enumerate(date_folders, start=1):
+        print(f"{idx}. {date}")
+
+    print("-" * 50)
+
+    while True:
+        try:
+            selection = int(input("Select a date by number: ")) - 1
+            if selection == -1:
+                return date_folders[-1]  # 최신 날짜 자동 선택
+            elif 0 <= selection < len(date_folders):
+                return date_folders[selection]
+            else:
+                print("Invalid selection. Try again.")
+        except ValueError:
+            print("Please enter a valid number.")
+
+
+###############################################################################
+# 2. 날짜별 logs, graph 폴더 생성
+###############################################################################
+def create_date_structure(selected_date):
+    """
+    results/<selected_date>/logs
+    results/<selected_date>/graph
+    두 폴더를 생성 (기존에 있으면 삭제 후 재생성).
+    """
+    # 최상위 results 폴더
+    results_dir = os.path.join(os.getcwd(), RESULTS_FOLDER_NAME)
+    os.makedirs(results_dir, exist_ok=True)
+
+    # 날짜별 폴더 (예: results/31-01-2025_01-00)
+    date_dir = os.path.join(results_dir, selected_date)
+    os.makedirs(date_dir, exist_ok=True)  # 날짜 폴더 자체는 지우지 않고 재사용할 수도 있음
+
+    # logs 폴더: results/<날짜>/logs
+    logs_dir = os.path.join(date_dir, LOGS_SUBFOLDER_NAME)
+    # graph 폴더: results/<날짜>/graph
+    graph_dir = os.path.join(date_dir, GRAPH_SUBFOLDER_NAME)
+
+    # 필요 시, logs/graph 폴더는 매번 초기화
+    if os.path.exists(logs_dir):
+        shutil.rmtree(logs_dir)
+    os.makedirs(logs_dir, exist_ok=True)
+
+    if os.path.exists(graph_dir):
+        shutil.rmtree(graph_dir)
+    os.makedirs(graph_dir, exist_ok=True)
+
+    return date_dir, logs_dir, graph_dir
+
+
+def remove_progress_folder(date_logs_dir):
+    """
+    progress 폴더가 있으면 삭제.
+    """
+    progress_dir = os.path.join(date_logs_dir, 'progress')
+    if os.path.exists(progress_dir):
+        shutil.rmtree(progress_dir)
+
+
+###############################################################################
+# 3. tar.gz 추출 & 폴더 구조 정리
+###############################################################################
 def extract_and_categorize_tar(file_path, output_dir):
-    # Extract tar file and categorize logs
     try:
         with tarfile.open(file_path, 'r:gz') as tar:
             tar.extractall(path=output_dir)
@@ -49,25 +116,39 @@ def extract_and_categorize_tar(file_path, output_dir):
             for file in files:
                 if file.endswith('.log'):
                     parts = file.split('_')
-                    policy_name = next(('_'.join(parts[i + 1:j]) for i, part in enumerate(parts) if part == 'TIER' for j in range(i + 1, len(parts)) if 'DEVICES' in parts[j]), None)
-                    category_name = next(('_'.join(parts[j + 1:]).replace('.log', '') for j in range(len(parts)) if 'DEVICES' in parts[j]), None)
+                    # policy_name, category_name 파싱
+                    policy_name = next((
+                        '_'.join(parts[i + 1:j])
+                        for i, part in enumerate(parts) if part == 'TIER'
+                        for j in range(i + 1, len(parts)) if 'DEVICES' in parts[j]
+                    ), None)
+                    category_name = next((
+                        '_'.join(parts[j + 1:]).replace('.log', '')
+                        for j in range(len(parts)) if 'DEVICES' in parts[j]
+                    ), None)
+
                     if policy_name and category_name:
                         policy_dir = os.path.join(output_dir, policy_name)
                         category_dir = os.path.join(policy_dir, category_name)
                         os.makedirs(category_dir, exist_ok=True)
-                        shutil.move(os.path.join(root, file), os.path.join(category_dir, file))
+                        shutil.move(
+                            os.path.join(root, file),
+                            os.path.join(category_dir, file)
+                        )
     except Exception as e:
         print(f"Error extracting tar file {file_path}: {e}")
 
 
-def copy_and_extract_files(base_dir, date_dir):
-    # Copy and extract files from base directory to date directory
+def copy_and_extract_files(base_dir, logs_dir):
+    """
+    base_dir 내의 .tar.gz, .log 파일을 logs_dir로 복사 & 압축해제 & 구조화.
+    """
     ite_dirs = []
 
     for file_name in os.listdir(base_dir):
         if file_name.endswith(('.tar.gz', '.log')):
-            ite_name = file_name.split('.')[0]  # Extract the name without extension
-            ite_dir = os.path.join(date_dir, ite_name)
+            ite_name = file_name.split('.')[0]
+            ite_dir = os.path.join(logs_dir, ite_name)
             os.makedirs(ite_dir, exist_ok=True)
             ite_dirs.append(ite_dir)
             full_file_name = os.path.join(base_dir, file_name)
@@ -80,42 +161,41 @@ def copy_and_extract_files(base_dir, date_dir):
 
 
 def remove_nested_ite_folders(ite_dirs):
-    # Remove nested ITE folders if any
+    """
+    압축 해제 시 ITE 폴더 내부에 동일 이름 중첩 폴더가 생기면 삭제
+    """
     for ite_dir in ite_dirs:
         nested_ite_dir = os.path.join(ite_dir, os.path.basename(ite_dir))
         if os.path.exists(nested_ite_dir):
             shutil.rmtree(nested_ite_dir)
 
 
-def remove_progress_folder(date_dir):
-    # Remove progress folder if exists
-    progress_dir = os.path.join(date_dir, 'progress')
-    if os.path.exists(progress_dir):
-        shutil.rmtree(progress_dir)
-
-
+###############################################################################
+# 4. 로그 파일(멀티라인) -> 싱글 라인 변환
+###############################################################################
 def convert_logs_to_single_line(log_file_path):
-    # Convert multi-line log files to single line
     try:
         with open(log_file_path, 'r') as lf:
             lines = [line.strip() for line in lf.readlines()]
         if len(lines) > 1:
-            single_line = ";".join(lines[1:])  # Combine all lines after the header
+            single_line = ";".join(lines[1:])
             with open(log_file_path, 'w') as lf:
                 lf.write(single_line)
     except Exception as e:
         print(f"Error converting log file {log_file_path} to single line: {e}")
 
 
-def read_logs(date_evaluation_dir):
-    # Read logs from the date evaluation directory
+###############################################################################
+# 5. logs 폴더 구조(ITE->Policy->Category)에서 로그 불러오기
+###############################################################################
+def read_logs(logs_dir):
     log_data = {}
     total_logs = 0
     unique_policies = set()
     unique_categories = set()
 
-    for ite_dir in os.listdir(date_evaluation_dir):
-        ite_path = os.path.join(date_evaluation_dir, ite_dir)
+    for ite_dir in os.listdir(logs_dir):
+        ite_path = os.path.join(logs_dir, ite_dir)
         if os.path.isdir(ite_path):
             log_data[ite_dir] = {}
             for policy_name in os.listdir(ite_path):
@@ -153,31 +233,45 @@ def read_logs(date_evaluation_dir):
     return log_data
 
 
-def process_files_by_date(base_path, date_str):
-    # Process files by date
+###############################################################################
+# 6. 날짜별 파일 처리
+###############################################################################
+def process_files_by_date(base_path, selected_date):
+    """
+    base_path (ex: 'output') 아래의 <selected_date>/default_config 디렉토리에 
+    있는 tar.gz, log 파일들을 추출해서 
+    results/<selected_date>/logs 에 정리합니다.
+    """
     try:
-        date = datetime.strptime(date_str, '%d-%m-%Y_%H-%M')
-        date_dir_name = date.strftime('%d-%m-%Y_%H-%M')
-        base_dir = os.path.join(base_path, date_dir_name, 'default_config')
-        evaluation_dir = create_evaluation_folder()
-        date_evaluation_dir = os.path.join(evaluation_dir, date_dir_name)
-
-        remove_and_create_date_folder(date_evaluation_dir)
-        ite_dirs = copy_and_extract_files(base_dir, date_evaluation_dir)
-        remove_nested_ite_folders(ite_dirs)
-        remove_progress_folder(date_evaluation_dir)
-
-        log_data = read_logs(date_evaluation_dir)
-        return log_data
-
+        # 날짜 검증
+        datetime.strptime(selected_date, '%d-%m-%Y_%H-%M')
     except ValueError as e:
         print(f"Invalid date format. Please use DD-MM-YYYY_HH-MM. Error: {e}")
-    except Exception as e:
-        print(f"An error occurred: {e}")
+        return {}
+
+    # 1) 날짜별 소스 경로 (output/<date>/default_config)
+    base_dir = os.path.join(base_path, selected_date, 'default_config')
+    if not os.path.isdir(base_dir):
+        print(f"Error: Base directory not found: {base_dir}")
+        return {}
+
+    # 2) results/<date>/logs, graph 폴더 생성
+    date_dir, logs_dir, graph_dir = create_date_structure(selected_date)
+
+    # 3) 파일 복사 & 압축해제
+    ite_dirs = copy_and_extract_files(base_dir, logs_dir)
+    remove_nested_ite_folders(ite_dirs)
+    remove_progress_folder(logs_dir)
+
+    # 4) 로그 읽기
+    log_data = read_logs(logs_dir)
+    return log_data, logs_dir, graph_dir
 
 
+###############################################################################
+# 7. 선택 기능 (ITE, Policy, Category)
+###############################################################################
 def select_option(options, option_name):
-    # Select option from a list
     options = natsorted(options)
     max_width = max(len(option) for option in options) + 2
     format_str = f"{{:<{max_width}}}  |  {{:<{max_width}}}"
@@ -201,8 +295,10 @@ def select_option(options, option_name):
             print(f"Please enter a valid number for {option_name}.")
 
 
+###############################################################################
+# 8. 로그를 DataFrame에 쌓기
+###############################################################################
 def print_log_line(line, data, ite, policy_name, devices, category):
-    # Print and collect log lines into the data dictionary
     items = line.split(';')
     data['ite'].append(ite)
     data['policy_name'].append(policy_name)
@@ -215,8 +311,10 @@ def print_log_line(line, data, ite, policy_name, devices, category):
         index += 1
 
 
-def plot_graph(mean_df, auto=False):
-    # Define columns for automatic plotting
+###############################################################################
+# 9. 그래프 생성/저장
+###############################################################################
+def plot_graph(mean_df, input_date, graph_dir, auto=False):
     auto_plot_columns = [
         # ALL
         'num_of_completed_tasks(ALL)',
@@ -253,12 +351,10 @@ def plot_graph(mean_df, auto=False):
         'average_server_utilization(Mobile)_(%)',
         'num_of_failed_tasks_due_vm_capacity(Mobile)'
     ]
-
-    # Add the newly created combined metric to the list of auto plot columns
     auto_plot_columns.append('num_of_completed_plus_failed_tasks(ALL)')
 
     if not auto:
-        # Select x and y values for the graph
+        # 수동으로 X,Y 선택
         columns = mean_df.columns.tolist()
         max_width = max(len(column) for column in columns) + 2
         format_str = f"{{:<{max_width}}}  |  {{:<{max_width}}}"
@@ -284,32 +380,27 @@ def plot_graph(mean_df, auto=False):
                     print("Invalid selection. Please try again.")
             except ValueError:
                 print("Please enter a valid number.")
-        create_and_save_plot(mean_df, x_col, y_col)
+        create_and_save_plot(mean_df, x_col, y_col, input_date, graph_dir)
     else:
+        # 자동
         x_col = 'devices'
         for y_col in auto_plot_columns:
-            create_and_save_plot(mean_df, x_col, y_col)
+            create_and_save_plot(mean_df, x_col, y_col, input_date, graph_dir)
 
 
-def create_and_save_plot(mean_df, x_col, y_col):
-    #scienceplots.style()
+def create_and_save_plot(mean_df, x_col, y_col, input_date, graph_dir):
+    plt.style.use(['science', 'ieee', 'no-latex'])
 
-    # Ensure x_col is converted to integer
     mean_df[x_col] = mean_df[x_col].astype(int)
 
-    # Define a fixed legend order for policies
     first_row_policies = ['ONLY_MOBILE','ONLY_EDGE','ONLY_CLOUD']
     second_row_policies = ['NETWORK_BASED','UTILIZATION_BASED','EDGE_PRIORITY']
     fixed_policy_order = first_row_policies + second_row_policies
 
-    # Define distinct and easy-to-read colors for plotting
     colors = ['#2b83ba', '#abdda4', '#fdae61', '#d7191c', '#8c564b', '#9467bd', 
               '#ff7f0e', '#17becf', '#1f77b4', '#bcbd22']
-
-    # Markers for line graphs to differentiate lines
     markers = ['o', 'x', 's', 'd', '^']
 
-    # List of metrics to be plotted as line graphs (continuous data)
     line_graph_metrics = [
         'average_processing_time(ALL)_(sec)', 'average_service_time(ALL)_(sec)',
         'average_network_delay(ALL)_(sec)', 'average_service_time(Cloud)_(sec)',
@@ -317,17 +408,15 @@ def create_and_save_plot(mean_df, x_col, y_col):
         'average_processing_time(Edge)_(sec)', 'average_service_time(Mobile)_(sec)',
         'average_processing_time(Mobile)_(sec)'
     ]
-    
-    # Increase figure size
+
     plt.figure(figsize=(16, 10), dpi=300)
-    
-    bar_width = 0.15  # Width of the bars
-    unique_x_values = mean_df[x_col].unique()  
-    
+    bar_width = 0.15
+    unique_x_values = mean_df[x_col].unique()
+
     plotting_data_list = []
 
     if y_col in line_graph_metrics:
-        # Line graph plotting
+        # 라인 그래프
         for i, policy in enumerate(fixed_policy_order):
             if policy in mean_df['policy_name'].unique():
                 policy_df = mean_df[mean_df['policy_name'] == policy].copy()
@@ -339,90 +428,100 @@ def create_and_save_plot(mean_df, x_col, y_col):
                 )
         plt.xticks(unique_x_values, fontsize=18)
     else:
-        # Bar graph plotting
+        # 바 그래프
         x_positions = np.arange(len(unique_x_values))
 
         for i, policy in enumerate(fixed_policy_order):
             if policy in mean_df['policy_name'].unique():
                 policy_df = mean_df[mean_df['policy_name'] == policy].copy()
 
-                # Convert some metrics to percentage
-                if y_col in ['num_of_completed_tasks(ALL)', 'num_of_failed_tasks(ALL)', 'num_of_uncompleted_tasks(ALL)', 'num_of_completed_plus_failed_tasks(ALL)']:
+                # 일부 컬럼은 퍼센트로 변환
+                if y_col in [
+                    'num_of_completed_tasks(ALL)',
+                    'num_of_failed_tasks(ALL)',
+                    'num_of_uncompleted_tasks(ALL)',
+                    'num_of_completed_plus_failed_tasks(ALL)'
+                ]:
                     total = (policy_df['num_of_completed_tasks(ALL)'] + 
                              policy_df['num_of_failed_tasks(ALL)'])
                     total[total == 0] = 1
-                    # For the combined metric 'num_of_completed_plus_failed_tasks(ALL)', also convert to percentage
-                    if y_col == 'num_of_completed_plus_failed_tasks(ALL)':
-                        policy_df[y_col] = (policy_df[y_col] / total) * 100
-                    else:
-                        policy_df[y_col] = (policy_df[y_col] / total) * 100
+                    policy_df[y_col] = (policy_df[y_col] / total) * 100
 
-                elif y_col in ['num_of_failed_tasks_due_network(ALL)', 'num_of_failed_tasks_due_vm_capacity(ALL)', 'num_of_failed_tasks_due_mobility(ALL)']:
+                elif y_col in [
+                    'num_of_failed_tasks_due_network(ALL)',
+                    'num_of_failed_tasks_due_vm_capacity(ALL)',
+                    'num_of_failed_tasks_due_mobility(ALL)'
+                ]:
                     total_failed = policy_df['num_of_failed_tasks(ALL)']
                     total_failed[total_failed == 0] = 1
                     policy_df[y_col] = (policy_df[y_col] / total_failed) * 100
 
                 plotting_data_list.append(policy_df[['policy_name', x_col, y_col]])
 
-                # 기본 bar 그래프
                 if y_col == 'num_of_completed_plus_failed_tasks(ALL)':
-                    plt.bar(x_positions + i * bar_width, policy_df[y_col], bar_width, label=policy, color=colors[i % len(colors)], alpha=0.5)
+                    plt.bar(x_positions + i * bar_width,
+                            policy_df[y_col],
+                            bar_width,
+                            label=policy,
+                            color=colors[i % len(colors)],
+                            alpha=0.5)
                 else:
-                    plt.bar(x_positions + i * bar_width, policy_df[y_col], bar_width, label=policy, color=colors[i % len(colors)])
-                
-                # 추가: y_col이 num_of_completed_plus_failed_tasks(ALL)일 때 completed tasks bar도 반투명으로 추가
+                    plt.bar(x_positions + i * bar_width,
+                            policy_df[y_col],
+                            bar_width,
+                            label=policy,
+                            color=colors[i % len(colors)])
+
+                # completed vs failed를 한눈에 보여주기 위한 추가 bar
                 if y_col == 'num_of_completed_plus_failed_tasks(ALL)':
-                    # completed tasks(ALL) 추출
                     completed_tasks = policy_df['num_of_completed_tasks(ALL)']
-                    # completed도 percentage로 변환 필요
-                    total = (policy_df['num_of_completed_tasks(ALL)'] + 
+                    total = (policy_df['num_of_completed_tasks(ALL)'] +
                              policy_df['num_of_failed_tasks(ALL)'])
                     total[total == 0] = 1
-                    completed_tasks_percentage = (completed_tasks / total) * 100
+                    completed_tasks_pct = (completed_tasks / total) * 100
+                    plt.bar(x_positions + i * bar_width,
+                            completed_tasks_pct,
+                            bar_width,
+                            color=colors[i % len(colors)],
+                            label='_nolegend_')
 
-                    # 동일 위치에 alpha=0.4로 completed tasks bar 추가 (label 없음)
-                    plt.bar(x_positions + i * bar_width, completed_tasks_percentage, bar_width, color=colors[i % len(colors)], label='_nolegend_')
+        plt.xticks(x_positions + bar_width * (len(fixed_policy_order) - 1) / 2, 
+                   labels=unique_x_values, fontsize=18, ha='center')
 
-
-        plt.xticks(x_positions + bar_width * (len(fixed_policy_order) - 1) / 2, labels=unique_x_values, fontsize=18, ha='center')
-    
     formatted_title = format_graph_title(y_col)
     formatted_title = formatted_title.replace('(All)', '').replace('(ALL)', '').strip()
-    
+
     formatted_x_label = format_axis_label(x_col, axis="x")
     formatted_y_label = format_axis_label(y_col, axis="y")
-    
+
     plt.xlabel(formatted_x_label, labelpad=10, fontsize=20)
-    
-    # Update y-axis label if it is a percentage
+
     if y_col in ['num_of_completed_tasks(ALL)', 'num_of_completed_plus_failed_tasks(ALL)']:
         plt.ylabel('Task Completion (%)', labelpad=10, fontsize=20)
-    elif y_col in ['num_of_failed_tasks(ALL)',
-                'num_of_failed_tasks_due_network(ALL)',
-                'num_of_failed_tasks_due_vm_capacity(ALL)',
-                'num_of_failed_tasks_due_mobility(ALL)']:
+    elif y_col in [
+        'num_of_failed_tasks(ALL)',
+        'num_of_failed_tasks_due_network(ALL)',
+        'num_of_failed_tasks_due_vm_capacity(ALL)',
+        'num_of_failed_tasks_due_mobility(ALL)'
+    ]:
         plt.ylabel('Task Failure (%)', labelpad=10, fontsize=20)
     else:
         plt.ylabel(formatted_y_label, labelpad=10, fontsize=20)
 
-
-    # If the graph is for completed tasks (ALL), set y-axis from 80 to 100
-    if y_col == 'num_of_completed_tasks(ALL)' or y_col == 'num_of_completed_plus_failed_tasks(ALL)':
+    # 특정한 y값 범위
+    if y_col in ['num_of_completed_tasks(ALL)', 'num_of_completed_plus_failed_tasks(ALL)']:
         plt.ylim(82, 101)
 
     plt.xticks(fontsize=18)
     plt.yticks(fontsize=18)
-    
     plt.grid(axis='y', linestyle='--', alpha=0.7)
     plt.grid(False, axis='x')
 
-    # Keep original legend for policies only
     unique_policies = [policy for policy in fixed_policy_order if policy in mean_df['policy_name'].unique()]
-
     adjust_legend_to_two_rows(unique_policies)
+    plt.tight_layout(rect=[0, 0, 1, 0.9])
 
-    plt.tight_layout(rect=[0, 0, 1, 0.9]) 
-
+    # 그래프 저장 서브폴더 결정
     if 'ALL' in y_col:
         folder = 'ALL'
     elif 'Cloud' in y_col:
@@ -434,44 +533,40 @@ def create_and_save_plot(mean_df, x_col, y_col):
     else:
         folder = 'OTHERS'
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    output_graph_dir = os.path.join(script_dir, 'output_graph', input_date, folder)
+    # 최종 저장 경로: results/<date>/graph/<folder>
+    output_graph_dir = os.path.join(graph_dir, folder)
+    os.makedirs(output_graph_dir, exist_ok=True)
 
-    # Create subdirectories
-    graph_output_dir = os.path.join(output_graph_dir, 'graph')
-    csv_output_dir = os.path.join(output_graph_dir, 'csv')
-    os.makedirs(graph_output_dir, exist_ok=True)
-    os.makedirs(csv_output_dir, exist_ok=True)
-
-    graph_file_name = os.path.join(graph_output_dir, f"{x_col}_per_{y_col}.png")
+    # 그래프 저장
+    graph_file_name = os.path.join(output_graph_dir, f"{x_col}_per_{y_col}.png")
     plt.savefig(graph_file_name, bbox_inches='tight', dpi=300)
     plt.close()
     print(f"Graph saved to {graph_file_name}")
     print("\n" + "-"*50 + "\n")
 
+    # 해당 그래프에 사용된 DF CSV 저장
     if plotting_data_list:
         final_plot_df = pd.concat(plotting_data_list, ignore_index=True)
-        final_plot_csv = os.path.join(csv_output_dir, f"{x_col}_per_{y_col}.csv")
+        final_plot_csv = os.path.join(output_graph_dir, f"{x_col}_per_{y_col}.csv")
         final_plot_df.to_csv(final_plot_csv, index=False)
         print(f"Plot data saved to {final_plot_csv}")
         print("\n" + "-"*50 + "\n")
 
+
 def adjust_legend_to_two_rows(unique_policies):
-    # 동적으로 열 개수 계산 (2개의 행으로 균등 분배)
     num_policies = len(unique_policies)
-    ncol = (num_policies + 1) // 2  # 정책 개수를 기준으로 열 개수 계산
-    
+    ncol = (num_policies + 1) // 2
     plt.legend(
         unique_policies,
-        loc='upper center', 
-        bbox_to_anchor=(0.5, -0.15),  # 두 줄일 경우 적당한 높이로 조정
+        loc='upper center',
+        bbox_to_anchor=(0.5, -0.15),
         fontsize=18,
-        ncol=ncol,  # 계산된 열 개수
+        ncol=ncol,
         frameon=True
     )
 
+
 def format_graph_title(y_col):
-    # Mapping of raw column names to more readable titles
     title_mappings = {
         'average_processing_time(ALL)_(sec)': 'Average Processing Time (All) (sec)',
         'average_service_time(ALL)_(sec)': 'Average Service Time (All) (sec)',
@@ -497,20 +592,18 @@ def format_graph_title(y_col):
         'num_of_failed_tasks_due_network(ALL)': 'Number of Failed Tasks Due to Network (All)',
         'num_of_failed_tasks_due_vm_capacity(ALL)': 'Number of Failed Tasks Due to VM Capacity (All)',
         'num_of_failed_tasks_due_mobility(ALL)': 'Number of Failed Tasks Due to Mobility (All)',
-        'num_of_failed_tasks_due_network(Cloud)': 'Number of Failed Tasks Due to Network (Cloud)',
-        'num_of_failed_tasks_due_vm_capacity(Cloud)': 'Number of Failed Tasks Due to VM Capacity (Cloud)',
-        'num_of_failed_tasks_due_network(Edge)': 'Number of Failed Tasks Due to Network (Edge)',
-        'num_of_failed_tasks_due_vm_capacity(Edge)': 'Number of Failed Tasks Due to VM Capacity (Edge)',
-        'num_of_failed_tasks_due_network(Mobile)': 'Number of Failed Tasks Due to Network (Mobile)',
-        'num_of_failed_tasks_due_vm_capacity(Mobile)': 'Number of Failed Tasks Due to VM Capacity (Mobile)',
+        'num_of_failed_tasks_due_network(Cloud)': 'Number of Failed Tasks (Network - Cloud)',
+        'num_of_failed_tasks_due_vm_capacity(Cloud)': 'Number of Failed Tasks (VM Capacity - Cloud)',
+        'num_of_failed_tasks_due_network(Edge)': 'Number of Failed Tasks (Network - Edge)',
+        'num_of_failed_tasks_due_vm_capacity(Edge)': 'Number of Failed Tasks (VM Capacity - Edge)',
+        'num_of_failed_tasks_due_network(Mobile)': 'Number of Failed Tasks (Network - Mobile)',
+        'num_of_failed_tasks_due_vm_capacity(Mobile)': 'Number of Failed Tasks (VM Capacity - Mobile)',
         'num_of_completed_plus_failed_tasks(ALL)': 'Number of Completed + Failed Tasks (All)'
     }
-    
-    # Return the formatted title based on the y_col
-    return title_mappings.get(y_col, y_col)  # Default to y_col if no mapping found
+    return title_mappings.get(y_col, y_col)
+
 
 def format_axis_label(label, axis="x"):
-    # Mapping of raw column names to more readable axis labels
     label_mappings = {
         'devices': 'Number of MDs',
         'average_processing_time(ALL)_(sec)': 'Processing Time (sec)',
@@ -545,129 +638,137 @@ def format_axis_label(label, axis="x"):
         'num_of_failed_tasks_due_vm_capacity(Mobile)': 'Failed Tasks (VM Capacity - Mobile)',
         'num_of_completed_plus_failed_tasks(ALL)': 'Completed+Failed Tasks'
     }
-    
-    # Return the formatted label for the x or y axis
-    return label_mappings.get(label, label)  # Default to label if no mapping found
+    return label_mappings.get(label, label)
 
 
+###############################################################################
+# 10. 메인 실행부
+###############################################################################
 if __name__ == "__main__":
     try:
-        if len(sys.argv) != 2:
-            print(f"Usage: python3 {sys.argv[0]} <date_time>")
-            print(f"Example: python3 {sys.argv[0]} 15-06-2024_19-11")
+        base_path = "output"
+        date_folders = get_available_date_folders(base_path)
+        input_date = select_date_folder(date_folders)
+        print(f"\nSelected Date: {input_date}")
+
+        # 파일을 날짜 기반으로 처리 -> logs, graph 폴더 생성 & 로그 가져오기
+        result = process_files_by_date(base_path, input_date)
+        if not result:
+            sys.exit(1)  # 처리 실패시 종료
+
+        log_data, logs_dir, graph_dir = result
+
+        # DataFrame에 넣을 dict
+        data = {key: [] for key in ['ite', 'policy_name', 'devices', 'category'] + list(all_apps_generic.values())}
+
+        # ITE 선택
+        ite_keys = natsorted(list(log_data.keys()))
+        print("\n" + "-"*50 + "\n")
+        print("Available ITEs:")
+        ite_selection = select_option(ite_keys, "ITE")
+
+        if ite_selection == 'ALL':
+            selected_ites = ite_keys
+            ite_part = 'all_ites'
         else:
-            input_date = sys.argv[1]
-            base_path = "output"  # Base path where the dated directories are located
-            log_data = process_files_by_date(base_path, input_date)
+            selected_ites = [ite_selection]
+            ite_part = ite_selection
 
-            # Initialize an empty DataFrame to store all logs
-            data = {key: [] for key in ['ite', 'policy_name', 'devices', 'category'] + list(all_apps_generic.values())}
+        # Policy 선택
+        policy_keys = natsorted({policy for ite in selected_ites for policy in log_data.get(ite, {}).keys()})
+        print("\n" + "-"*50 + "\n")
+        print("Available Policies:")
+        policy_selection = select_option(policy_keys, "Policies")
 
-            ite_keys = natsorted(list(log_data.keys()))
-            print("\n" + "-"*50 + "\n")
-            print("Available ITEs:")
-            ite_selection = select_option(ite_keys, "ITE")
+        if policy_selection == 'ALL':
+            selected_policies = policy_keys
+            policy_part = 'all_policies'
+        else:
+            selected_policies = [policy_selection]
+            policy_part = policy_selection
 
-            if ite_selection == 'ALL':
-                selected_ites = ite_keys
-                ite_part = 'all_ites'
+        # Category 선택
+        category_keys = natsorted({
+            category
+            for ite in selected_ites
+            for policy in selected_policies
+            for category in log_data.get(ite, {}).get(policy, {}).keys()
+        })
+        print("\n" + "-"*50 + "\n")
+        print("Available Categories:")
+        category_selection = select_option(category_keys, "Categories")
+
+        if category_selection == 'ALL':
+            selected_categories = category_keys
+            category_part = 'all_categories'
+        else:
+            selected_categories = [category_selection]
+            category_part = category_selection
+
+        # 선택한 ITE/Policy/Category에 맞춰 DataFrame 생성
+        for ite in selected_ites:
+            for policy in selected_policies:
+                for category in selected_categories:
+                    if category in log_data[ite].get(policy, {}):
+                        print(f"\n--- Logs for {category} in {policy} of {ite} ---")
+                        print(f"{'Log File':<50} {'Devices':<15}")
+                        print('-' * 65)
+
+                        for log_file, log_lines in log_data[ite][policy][category].items():
+                            devices = [part.replace('DEVICES', '')
+                                       for part in log_file.split('_') if 'DEVICES' in part][0]
+                            print(f"{log_file:<50} {devices:<15}")
+                            print_log_line(log_lines[0], data, ite, policy, devices, category)
+
+        df = pd.DataFrame(data)
+
+        # 숫자 컬럼 변환
+        numeric_cols = list(all_apps_generic.values()) + ["devices"]
+        df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
+
+        # 정렬
+        sorted_df = df.sort_values(by=['policy_name', 'devices'])
+
+        # groupby mean
+        numeric_columns = sorted_df.select_dtypes(include=['number']).columns
+        mean_df = sorted_df.groupby(['policy_name', 'devices'], as_index=False)[numeric_columns].mean()
+
+        # 완료+실패 합
+        mean_df['num_of_completed_plus_failed_tasks(ALL)'] = \
+            mean_df['num_of_completed_tasks(ALL)'] + mean_df['num_of_failed_tasks(ALL)']
+
+        # CSV 저장용 폴더: logs_dir/csv
+        csv_dir = os.path.join(logs_dir, "csv")
+        os.makedirs(csv_dir, exist_ok=True)
+
+        # 1) raw
+        file_raw = os.path.join(csv_dir, f"{input_date}_logs_{ite_part}_{policy_part}_{category_part}.csv")
+        df.to_csv(file_raw, index=False)
+        print(f"Data saved to {file_raw}")
+
+        # 2) sorted
+        file_sorted = os.path.join(csv_dir, f"{input_date}_logs_sorted_{ite_part}_{policy_part}_{category_part}.csv")
+        sorted_df.to_csv(file_sorted, index=False)
+        print(f"Sorted data saved to {file_sorted}")
+
+        # 3) mean
+        file_mean = os.path.join(csv_dir, f"{input_date}_logs_mean_{ite_part}_{policy_part}_{category_part}.csv")
+        mean_df.to_csv(file_mean, index=False)
+        print(f"Mean data saved to {file_mean}")
+
+        # 그래프 그릴지 여부
+        print("-" * 50)
+        while True:
+            plot_choice = input("Do you want to plot graphs automatically or manually? (a/m): ").lower()
+            if plot_choice == 'a':
+                print("\n--- Automatic Plotting ---\n")
+                plot_graph(mean_df, input_date, graph_dir, auto=True)
+                break
+            elif plot_choice == 'm':
+                plot_graph(mean_df, input_date, graph_dir, auto=False)
+                break
             else:
-                selected_ites = [ite_selection]
-                ite_part = ite_selection
-
-            policy_keys = natsorted({policy for ite in selected_ites for policy in log_data.get(ite, {}).keys()})
-            print("\n" + "-"*50 + "\n")
-            print("Available Policies:")
-            policy_selection = select_option(policy_keys, "Policies")
-
-            if policy_selection == 'ALL':
-                selected_policies = policy_keys
-                policy_part = 'all_policies'
-            else:
-                selected_policies = [policy_selection]
-                policy_part = policy_selection
-
-            category_keys = natsorted({category for ite in selected_ites for policy in selected_policies for category in log_data.get(ite, {}).get(policy, {}).keys()})
-            print("\n" + "-"*50 + "\n")
-            print("Available Categories:")
-            category_selection = select_option(category_keys, "Categories")
-
-            if category_selection == 'ALL':
-                selected_categories = category_keys
-                category_part = 'all_categories'
-            else:
-                selected_categories = [category_selection]
-                category_part = category_selection
-
-            for ite in selected_ites:
-                for policy in selected_policies:
-                    for category in selected_categories:
-                        if category in log_data[ite].get(policy, {}):
-                            print(f"\n--- Logs for {category} in {policy} of {ite} ---")
-
-                            #Set up the header for tabular display
-                            print(f"{'Log File':<50} {'Devices':<15}")
-                            print('-' * 65)
-
-                            for log_file, log_lines in log_data[ite][policy][category].items():
-                                # Extract the 'Devices' information from the log file name
-                                devices = [part.replace('DEVICES', '') for part in log_file.split('_') if 'DEVICES' in part][0]
-                                print(f"{log_file:<50} {devices:<15}")
-
-                                # Call function to process the log data
-                                print_log_line(log_lines[0], data, ite, policy, devices, category)
-
-            # Create a DataFrame from the collected data
-            df = pd.DataFrame(data)
-
-            # Convert appropriate columns to numeric types
-            numeric_cols = list(all_apps_generic.values()) + ["devices"]
-            df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
-
-            # Sort the DataFrame by 'policy_name' and 'devices'
-            sorted_df = df.sort_values(by=['policy_name', 'devices'])
-
-            # Calculate the means of the numeric columns
-            numeric_columns = sorted_df.select_dtypes(include=['number']).columns
-            mean_df = sorted_df.groupby(['policy_name', 'devices'], as_index=False)[numeric_columns].mean()
-
-            # Create a new combined metric: completed + failed tasks
-            mean_df['num_of_completed_plus_failed_tasks(ALL)'] = mean_df['num_of_completed_tasks(ALL)'] + mean_df['num_of_failed_tasks(ALL)']
-
-            # Create csv and graph directories
-            base_output_dir = os.path.join('evaluation', input_date)
-            csv_dir = os.path.join(base_output_dir, 'csv')
-            os.makedirs(csv_dir, exist_ok=True)
-
-            # Save the logs to CSV
-            print("-"*50)
-            file_name = os.path.join(csv_dir, f"{input_date}_logs_{ite_part}_{policy_part}_{category_part}.csv")
-            df.to_csv(file_name, index=False)
-            print(f"Data saved to {file_name}")
-
-            # Save the sorted logs to CSV
-            sorted_file_name = os.path.join(csv_dir, f"{input_date}_logs_sorted_{ite_part}_{policy_part}_{category_part}.csv")
-            sorted_df.to_csv(sorted_file_name, index=False)
-            print(f"Sorted data saved to {sorted_file_name}")
-
-            # Save the mean logs to CSV
-            mean_file_name = os.path.join(csv_dir, f"{input_date}_logs_mean_{ite_part}_{policy_part}_{category_part}.csv")
-            mean_df.to_csv(mean_file_name, index=False)
-            print(f"Mean data saved to {mean_file_name}")
-
-            # Ask to plot the graph
-            print("-"*50)
-            while True:
-                plot_choice = input("Do you want to plot graphs automatically or manually? (a/m): ").lower()
-                if plot_choice == 'a':
-                    print("\n--- Automatic Plotting ---\n")
-                    plot_graph(mean_df, auto=True)
-                    break
-                elif plot_choice == 'm':
-                    plot_graph(mean_df, auto=False)
-                    break
-                else:
-                    print("Invalid choice. Please enter 'a' for automatic or 'm' for manual.")
+                print("Invalid choice. Please enter 'a' for automatic or 'm' for manual.")
 
     except KeyboardInterrupt:
         print("\n--- Exit ---")
