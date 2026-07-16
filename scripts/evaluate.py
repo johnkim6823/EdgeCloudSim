@@ -3,6 +3,7 @@ import tarfile
 import shutil
 import sys
 from datetime import datetime
+from functools import partial
 from natsort import natsorted
 import numpy as np
 import pandas as pd
@@ -11,30 +12,63 @@ import scienceplots
 
 plt.style.use(['science', 'ieee', 'no-latex'])
 
-# Add parent directory to the system path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# index_mapping.py lives right next to this script.
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from index_mapping import all_apps_generic
 
 ###############################################################################
 # Global folder name constants
 ###############################################################################
-RESULTS_FOLDER_NAME = "results"  # The top-level folder that contains 'logs' and 'graph'
 LOGS_SUBFOLDER_NAME = "logs"
 GRAPH_SUBFOLDER_NAME = "graph"
+EVALUATION_RESULT_DIRNAME = "evaluation_result"  # scripts/evaluation_result/<name>_<YYYYMMDD>/
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))  # scripts/
+
+
+###############################################################################
+# 0. Evaluation menu: number -> (display name, handler(results_dir))
+###############################################################################
+# EVALUATION_MENU itself is built at the bottom of this file (it needs
+# run_app_evaluation, defined near main(), to already exist) -- see there
+# for how new entries get added.
+def prompt_for_evaluation_choice(cli_arg=None):
+    """Returns the chosen EVALUATION_MENU key. If cli_arg is given (menu
+    number or display name, case-insensitive), it's used instead of
+    prompting -- so `python evaluate.py ReSACO` / `python evaluate.py 1`
+    both skip the interactive menu, while plain `python evaluate.py` shows it."""
+    if cli_arg:
+        if cli_arg in EVALUATION_MENU:
+            return cli_arg
+        for key, entry in EVALUATION_MENU.items():
+            if entry["name"].lower() == cli_arg.lower():
+                return key
+        options = ', '.join(f"{k} ({v['name']})" for k, v in EVALUATION_MENU.items())
+        print(f"Error: '{cli_arg}' is not a valid choice. Options: {options}")
+        sys.exit(1)
+
+    print("실행할 평가 방식을 선택하세요:")
+    for key, entry in EVALUATION_MENU.items():
+        print(f"{key}. {entry['name']}")
+    while True:
+        choice = input("입력 (번호): ").strip()
+        if choice in EVALUATION_MENU:
+            return choice
+        print("잘못된 입력입니다. 다시 선택해주세요.")
 
 
 ###############################################################################
 # 1. Select date folder
 ###############################################################################
-def get_available_date_folders(base_path="output"):
+def get_available_date_folders(base_path):
     try:
         date_folders = [f for f in os.listdir(base_path) if os.path.isdir(os.path.join(base_path, f))]
         if not date_folders:
-            print("Error: No date folders found in /output.")
+            print(f"Error: No date folders found in {base_path}.")
             sys.exit(1)
         return natsorted(date_folders)
     except Exception as e:
-        print(f"Error: Unable to read /output directory: {e}")
+        print(f"Error: Unable to read {base_path} directory: {e}")
         sys.exit(1)
 
 
@@ -62,29 +96,20 @@ def select_date_folder(date_folders):
 
 
 ###############################################################################
-# 2. Create 'logs' and 'graph' folders under the selected date folder
+# 2. Create 'logs' and 'graph' folders under the resolved results directory
 ###############################################################################
-def create_date_structure(selected_date):
+def create_result_structure(results_dir):
     """
-    Creates the following folder structure:
-    results/<selected_date>/logs
-    results/<selected_date>/graph
-    If the logs/graph folder already exists, it is removed and recreated.
+    Creates the following folder structure inside `results_dir` (already
+    resolved to scripts/evaluation_result/<name>_<YYYYMMDD>/ by main()):
+      logs/
+      graph/
+    If they already exist (e.g. re-running the same evaluation choice again
+    on the same day), they're removed and recreated so stale files don't linger.
     """
-    # Top-level 'results' folder
-    results_dir = os.path.join(os.getcwd(), RESULTS_FOLDER_NAME)
-    os.makedirs(results_dir, exist_ok=True)
+    logs_dir = os.path.join(results_dir, LOGS_SUBFOLDER_NAME)
+    graph_dir = os.path.join(results_dir, GRAPH_SUBFOLDER_NAME)
 
-    # Date folder, e.g., results/31-01-2025_01-00
-    date_dir = os.path.join(results_dir, selected_date)
-    os.makedirs(date_dir, exist_ok=True)  # We do not remove the date folder itself
-
-    # logs folder: results/<selected_date>/logs
-    logs_dir = os.path.join(date_dir, LOGS_SUBFOLDER_NAME)
-    # graph folder: results/<selected_date>/graph
-    graph_dir = os.path.join(date_dir, GRAPH_SUBFOLDER_NAME)
-
-    # If needed, remove logs/graph folder and recreate
     if os.path.exists(logs_dir):
         shutil.rmtree(logs_dir)
     os.makedirs(logs_dir, exist_ok=True)
@@ -93,7 +118,7 @@ def create_date_structure(selected_date):
         shutil.rmtree(graph_dir)
     os.makedirs(graph_dir, exist_ok=True)
 
-    return date_dir, logs_dir, graph_dir
+    return logs_dir, graph_dir
 
 
 def remove_progress_folder(date_logs_dir):
@@ -247,7 +272,7 @@ def read_logs(logs_dir):
 
     print("\n--- Log Reading Finished ---\n")
     print(f"Total ITEs processed: {total_ites}")
-    print(f"Unique Policies processed: {total_unique_policies}")
+    print(f"Unique Policies processed: {total_unique_policies} ({natsorted(unique_policies)})")
     print(f"Unique Categories processed: {total_unique_categories}")
     print(f"Total log files read: {total_logs}")
 
@@ -257,11 +282,11 @@ def read_logs(logs_dir):
 ###############################################################################
 # 6. Process files by date
 ###############################################################################
-def process_files_by_date(base_path, selected_date):
+def process_files_by_date(base_path, results_dir, selected_date):
     """
     1) Check and parse 'selected_date'.
-    2) Locate base_dir = output/<selected_date>/default_config.
-    3) Create results/<selected_date>/logs & graph folders.
+    2) Locate base_dir = <base_path>/<selected_date>/default_config.
+    3) Create logs & graph folders under results_dir.
     4) Copy and extract files from base_dir to logs_dir.
     5) Read logs (only ALL_APPS_GENERIC) and return (log_data, logs_dir, graph_dir).
     """
@@ -272,14 +297,16 @@ def process_files_by_date(base_path, selected_date):
         print(f"Invalid date format. Please use DD-MM-YYYY_HH-MM. Error: {e}")
         return {}
 
-    # 1) Source directory: output/<date>/default_config
+    # 1) Source directory: <base_path>/<date>/default_config
+    # ("default_config" is the scenario name in simulation.list; every
+    # EdgeCloudSim application here uses that same name for its one config.)
     base_dir = os.path.join(base_path, selected_date, 'default_config')
     if not os.path.isdir(base_dir):
         print(f"Error: Base directory not found: {base_dir}")
         return {}
 
-    # 2) Create logs/graph folders under results/<date>
-    date_dir, logs_dir, graph_dir = create_date_structure(selected_date)
+    # 2) Create logs/graph folders under results_dir
+    logs_dir, graph_dir = create_result_structure(results_dir)
 
     # 3) Copy and extract files
     ite_dirs = copy_and_extract_files(base_dir, logs_dir)
@@ -293,21 +320,28 @@ def process_files_by_date(base_path, selected_date):
 ###############################################################################
 # 7. Selection menu (ITE, Policy)
 ###############################################################################
+def print_two_column_menu(labeled_options):
+    """Prints a "1. foo  |  2. bar" style two-column menu. `labeled_options`
+    is the list of already-numbered strings to display (e.g. "3. EDGE_PRIORITY"),
+    shared by select_option's policy/ITE menu and plot_graph's manual
+    column picker."""
+    max_width = max(len(option) for option in labeled_options) + 2
+    format_str = f"{{:<{max_width}}}  |  {{:<{max_width}}}"
+    for idx in range(0, len(labeled_options), 2):
+        if idx + 1 < len(labeled_options):
+            print(format_str.format(labeled_options[idx], labeled_options[idx + 1]))
+        else:
+            print(labeled_options[idx])
+
+
 def select_option(options, option_name):
     """
     Displays options in two columns, returns a single selected item
     or 'ALL' if the user chooses '0'.
     """
     options = natsorted(options)
-    max_width = max(len(option) for option in options) + 2
-    format_str = f"{{:<{max_width}}}  |  {{:<{max_width}}}"
-
     print(f"0. Process all {option_name.lower()}s")
-    for idx in range(0, len(options), 2):
-        if idx + 1 < len(options):
-            print(format_str.format(f"{idx + 1}. {options[idx]}", f"{idx + 2}. {options[idx + 1]}"))
-        else:
-            print(f"{idx + 1}. {options[idx]}")
+    print_two_column_menu([f"{idx + 1}. {opt}" for idx, opt in enumerate(options)])
     while True:
         try:
             selection = int(input(f"Select {option_name} by number: ")) - 1
@@ -387,15 +421,9 @@ def plot_graph(mean_df, input_date, graph_dir, auto=False):
     if not auto:
         # Manual selection of X and Y
         columns = mean_df.columns.tolist()
-        max_width = max(len(column) for column in columns) + 2
-        format_str = f"{{:<{max_width}}}  |  {{:<{max_width}}}"
 
         print("\nSelect the columns for the X and Y axis of the graph:\n")
-        for idx in range(0, len(columns), 2):
-            if idx + 1 < len(columns):
-                print(format_str.format(f"{idx + 1}. {columns[idx]}", f"{idx + 2}. {columns[idx + 1]}"))
-            else:
-                print(f"{idx + 1}. {columns[idx]}")
+        print_two_column_menu([f"{idx + 1}. {col}" for idx, col in enumerate(columns)])
 
         while True:
             try:
@@ -419,12 +447,72 @@ def plot_graph(mean_df, input_date, graph_dir, auto=False):
             create_and_save_plot(mean_df, x_col, y_col, input_date, graph_dir)
 
 
+def _convert_to_percentage(policy_df, y_col):
+    """Rewrites policy_df[y_col] in place as a percentage of the
+    appropriate total (completed+failed tasks, or failed tasks), for the
+    handful of count columns that are plotted as percentages rather than
+    raw counts. No-op for any other column."""
+    if y_col in [
+        'num_of_completed_tasks(ALL)',
+        'num_of_failed_tasks(ALL)',
+        'num_of_uncompleted_tasks(ALL)',
+        'num_of_completed_plus_failed_tasks(ALL)'
+    ]:
+        total = policy_df['num_of_completed_tasks(ALL)'] + policy_df['num_of_failed_tasks(ALL)']
+        total[total == 0] = 1
+        policy_df[y_col] = (policy_df[y_col] / total) * 100
+
+    elif y_col in [
+        'num_of_failed_tasks_due_network(ALL)',
+        'num_of_failed_tasks_due_vm_capacity(ALL)',
+        'num_of_failed_tasks_due_mobility(ALL)'
+    ]:
+        total_failed = policy_df['num_of_failed_tasks(ALL)']
+        total_failed[total_failed == 0] = 1
+        policy_df[y_col] = (policy_df[y_col] / total_failed) * 100
+
+
+def _folder_for_column(y_col):
+    """Which of results/<date>/graph/{ALL,CLOUD,EDGE,MOBILE,OTHERS} a
+    given y_col's plot belongs in."""
+    if 'ALL' in y_col:
+        return 'ALL'
+    if 'Cloud' in y_col:
+        return 'CLOUD'
+    if 'Edge' in y_col:
+        return 'EDGE'
+    if 'Mobile' in y_col:
+        return 'MOBILE'
+    return 'OTHERS'
+
+
+def _save_plot_and_data(x_col, y_col, graph_dir, plotting_data_list):
+    output_graph_dir = os.path.join(graph_dir, _folder_for_column(y_col))
+    os.makedirs(output_graph_dir, exist_ok=True)
+
+    graph_file_name = os.path.join(output_graph_dir, f"{x_col}_per_{y_col}.png")
+    plt.savefig(graph_file_name, bbox_inches='tight', dpi=300)
+    plt.close()
+    print(f"Graph saved to {graph_file_name}")
+    print("\n" + "-" * 50 + "\n")
+
+    if plotting_data_list:
+        final_plot_df = pd.concat(plotting_data_list, ignore_index=True)
+        final_plot_csv = os.path.join(output_graph_dir, f"{x_col}_per_{y_col}.csv")
+        final_plot_df.to_csv(final_plot_csv, index=False)
+        print(f"Plot data saved to {final_plot_csv}")
+        print("\n" + "-" * 50 + "\n")
+
+
 def create_and_save_plot(mean_df, x_col, y_col, input_date, graph_dir):
     mean_df[x_col] = mean_df[x_col].astype(int)
 
-    first_row_policies = ['ONLY_MOBILE','ONLY_EDGE','ONLY_CLOUD']
-    second_row_policies = ['NETWORK_BASED','UTILIZATION_BASED','EDGE_PRIORITY']
-    fixed_policy_order = first_row_policies + second_row_policies
+    # Plot/legend order is derived from whatever policies are actually
+    # present in the data (natural-sorted) rather than a hardcoded list, so
+    # this works unchanged for three_tier's policies (ONLY_MOBILE,
+    # EDGE_PRIORITY, ...), ReSACO's (RESACO, SAC_BASELINE, ...), or any
+    # future application's -- each has a different policy set.
+    fixed_policy_order = natsorted(mean_df['policy_name'].unique())
 
     colors = ['#2b83ba', '#abdda4', '#fdae61', '#d7191c', '#8c564b', '#9467bd',
               '#ff7f0e', '#17becf', '#1f77b4', '#bcbd22']
@@ -463,27 +551,7 @@ def create_and_save_plot(mean_df, x_col, y_col, input_date, graph_dir):
         for i, policy in enumerate(fixed_policy_order):
             if policy in mean_df['policy_name'].unique():
                 policy_df = mean_df[mean_df['policy_name'] == policy].copy()
-
-                # Convert some columns to percentages
-                if y_col in [
-                    'num_of_completed_tasks(ALL)',
-                    'num_of_failed_tasks(ALL)',
-                    'num_of_uncompleted_tasks(ALL)',
-                    'num_of_completed_plus_failed_tasks(ALL)'
-                ]:
-                    total = (policy_df['num_of_completed_tasks(ALL)'] +
-                             policy_df['num_of_failed_tasks(ALL)'])
-                    total[total == 0] = 1
-                    policy_df[y_col] = (policy_df[y_col] / total) * 100
-
-                elif y_col in [
-                    'num_of_failed_tasks_due_network(ALL)',
-                    'num_of_failed_tasks_due_vm_capacity(ALL)',
-                    'num_of_failed_tasks_due_mobility(ALL)'
-                ]:
-                    total_failed = policy_df['num_of_failed_tasks(ALL)']
-                    total_failed[total_failed == 0] = 1
-                    policy_df[y_col] = (policy_df[y_col] / total_failed) * 100
+                _convert_to_percentage(policy_df, y_col)
 
                 plotting_data_list.append(policy_df[['policy_name', x_col, y_col]])
 
@@ -518,8 +586,6 @@ def create_and_save_plot(mean_df, x_col, y_col, input_date, graph_dir):
                    labels=unique_x_values, fontsize=18, ha='center')
 
     # Format axis labels
-    from_value = format_graph_title(y_col)
-    from_value = from_value.replace('(All)', '').replace('(ALL)', '').strip()
     formatted_x_label = format_axis_label(x_col, axis="x")
     formatted_y_label = format_axis_label(y_col, axis="y")
 
@@ -550,36 +616,7 @@ def create_and_save_plot(mean_df, x_col, y_col, input_date, graph_dir):
     adjust_legend_to_two_rows(unique_policies)
     plt.tight_layout(rect=[0, 0, 1, 0.9])
 
-    # Decide subfolder (ALL, CLOUD, EDGE, MOBILE, OTHERS) based on y_col
-    if 'ALL' in y_col:
-        folder = 'ALL'
-    elif 'Cloud' in y_col:
-        folder = 'CLOUD'
-    elif 'Edge' in y_col:
-        folder = 'EDGE'
-    elif 'Mobile' in y_col:
-        folder = 'MOBILE'
-    else:
-        folder = 'OTHERS'
-
-    # Final path to save the graph: results/<date>/graph/<folder>
-    output_graph_dir = os.path.join(graph_dir, folder)
-    os.makedirs(output_graph_dir, exist_ok=True)
-
-    # Save the plot
-    graph_file_name = os.path.join(output_graph_dir, f"{x_col}_per_{y_col}.png")
-    plt.savefig(graph_file_name, bbox_inches='tight', dpi=300)
-    plt.close()
-    print(f"Graph saved to {graph_file_name}")
-    print("\n" + "-" * 50 + "\n")
-
-    # Save the DataFrame that was used to create this plot
-    if plotting_data_list:
-        final_plot_df = pd.concat(plotting_data_list, ignore_index=True)
-        final_plot_csv = os.path.join(output_graph_dir, f"{x_col}_per_{y_col}.csv")
-        final_plot_df.to_csv(final_plot_csv, index=False)
-        print(f"Plot data saved to {final_plot_csv}")
-        print("\n" + "-" * 50 + "\n")
+    _save_plot_and_data(x_col, y_col, graph_dir, plotting_data_list)
 
 
 def adjust_legend_to_two_rows(unique_policies):
@@ -599,67 +636,34 @@ def adjust_legend_to_two_rows(unique_policies):
     )
 
 
-def format_graph_title(y_col):
-    title_mappings = {
-        'average_processing_time(ALL)_(sec)': 'Average Processing Time (All) (sec)',
-        'average_service_time(ALL)_(sec)': 'Average Service Time (All) (sec)',
-        'average_network_delay(ALL)_(sec)': 'Average Network Delay (All) (sec)',
-        'average_service_time(Cloud)_(sec)': 'Average Service Time (Cloud) (sec)',
-        'average_processing_time(Cloud)_(sec)': 'Average Processing Time (Cloud) (sec)',
-        'average_service_time(Edge)_(sec)': 'Average Service Time (Edge) (sec)',
-        'average_processing_time(Edge)_(sec)': 'Average Processing Time (Edge) (sec)',
-        'average_service_time(Mobile)_(sec)': 'Average Service Time (Mobile) (sec)',
-        'average_processing_time(Mobile)_(sec)': 'Average Processing Time (Mobile) (sec)',
-        'num_of_completed_tasks(ALL)': 'Number of Completed Tasks (All)',
-        'num_of_failed_tasks(ALL)': 'Number of Failed Tasks (All)',
-        'num_of_uncompleted_tasks(ALL)': 'Number of Uncompleted Tasks (All)',
-        'num_of_completed_tasks(Cloud)': 'Number of Completed Tasks (Cloud)',
-        'num_of_failed_tasks(Cloud)': 'Number of Failed Tasks (Cloud)',
-        'num_of_uncompleted_tasks(Cloud)': 'Number of Uncompleted Tasks (Cloud)',
-        'num_of_completed_tasks(Edge)': 'Number of Completed Tasks (Edge)',
-        'num_of_failed_tasks(Edge)': 'Number of Failed Tasks (Edge)',
-        'num_of_uncompleted_tasks(Edge)': 'Number of Uncompleted Tasks (Edge)',
-        'num_of_completed_tasks(Mobile)': 'Number of Completed Tasks (Mobile)',
-        'num_of_failed_tasks(Mobile)': 'Number of Failed Tasks (Mobile)',
-        'num_of_uncompleted_tasks(Mobile)': 'Number of Uncompleted Tasks (Mobile)',
-        'num_of_failed_tasks_due_network(ALL)': 'Number of Failed Tasks Due to Network (All)',
-        'num_of_failed_tasks_due_vm_capacity(ALL)': 'Number of Failed Tasks Due to VM Capacity (All)',
-        'num_of_failed_tasks_due_mobility(ALL)': 'Number of Failed Tasks Due to Mobility (All)',
-        'num_of_failed_tasks_due_network(Cloud)': 'Number of Failed Tasks (Network - Cloud)',
-        'num_of_failed_tasks_due_vm_capacity(Cloud)': 'Number of Failed Tasks (VM Capacity - Cloud)',
-        'num_of_failed_tasks_due_network(Edge)': 'Number of Failed Tasks (Network - Edge)',
-        'num_of_failed_tasks_due_vm_capacity(Edge)': 'Number of Failed Tasks (VM Capacity - Edge)',
-        'num_of_failed_tasks_due_network(Mobile)': 'Number of Failed Tasks (Network - Mobile)',
-        'num_of_failed_tasks_due_vm_capacity(Mobile)': 'Number of Failed Tasks (VM Capacity - Mobile)',
-        'num_of_completed_plus_failed_tasks(ALL)': 'Number of Completed + Failed Tasks (All)'
-    }
-    return title_mappings.get(y_col, y_col)
+TIERS = ['ALL', 'Cloud', 'Edge', 'Mobile']
+_TIME_METRICS = [('service_time', 'Service Time'), ('processing_time', 'Processing Time')]
+_COUNT_METRICS = [('completed_tasks', 'Completed'), ('failed_tasks', 'Failed'), ('uncompleted_tasks', 'Uncompleted')]
 
 
-def format_axis_label(label, axis="x"):
-    label_mappings = {
-        'devices': 'Number of MDs',
-        'average_processing_time(ALL)_(sec)': 'Processing Time (sec)',
-        'average_service_time(ALL)_(sec)': 'Service Time (sec)',
-        'average_network_delay(ALL)_(sec)': 'Network Delay (sec)',
-        'average_service_time(Cloud)_(sec)': 'Cloud Service Time (sec)',
-        'average_processing_time(Cloud)_(sec)': 'Cloud Processing Time (sec)',
-        'average_service_time(Edge)_(sec)': 'Edge Service Time (sec)',
-        'average_processing_time(Edge)_(sec)': 'Edge Processing Time (sec)',
-        'average_service_time(Mobile)_(sec)': 'Mobile Service Time (sec)',
-        'average_processing_time(Mobile)_(sec)': 'Mobile Processing Time (sec)',
-        'num_of_completed_tasks(ALL)': 'Completed Tasks',
-        'num_of_failed_tasks(ALL)': 'Failed Tasks',
-        'num_of_uncompleted_tasks(ALL)': 'Uncompleted Tasks',
-        'num_of_completed_tasks(Cloud)': 'Completed Tasks (Cloud)',
-        'num_of_failed_tasks(Cloud)': 'Failed Tasks (Cloud)',
-        'num_of_uncompleted_tasks(Cloud)': 'Uncompleted Tasks (Cloud)',
-        'num_of_completed_tasks(Edge)': 'Completed Tasks (Edge)',
-        'num_of_failed_tasks(Edge)': 'Failed Tasks (Edge)',
-        'num_of_uncompleted_tasks(Edge)': 'Uncompleted Tasks (Edge)',
-        'num_of_completed_tasks(Mobile)': 'Completed Tasks (Mobile)',
-        'num_of_failed_tasks(Mobile)': 'Failed Tasks (Mobile)',
-        'num_of_uncompleted_tasks(Mobile)': 'Uncompleted Tasks (Mobile)',
+def _build_axis_label_mappings():
+    """Every (metric, tier) combination follows one of two regular
+    patterns; generated here instead of listed by hand so a new metric
+    only needs to be added once. ALL-scope timings/counts drop the
+    "(All)"/tier qualifier entirely, per-tier timings prefix the tier
+    name, and per-tier counts suffix it in parens -- both irregular
+    relative to each other, so each needs its own small template. The
+    failed-tasks-due-to-* and completed-plus-failed entries don't follow
+    either pattern (the underlying log format phrases the ALL-scope and
+    per-tier versions differently), so they stay as explicit overrides."""
+    mappings = {'devices': 'Number of MDs'}
+    for metric_key, metric_label in _TIME_METRICS:
+        for tier in TIERS:
+            key = f'average_{metric_key}({tier})_(sec)'
+            mappings[key] = f'{metric_label} (sec)' if tier == 'ALL' else f'{tier} {metric_label} (sec)'
+    mappings['average_network_delay(ALL)_(sec)'] = 'Network Delay (sec)'
+
+    for metric_key, metric_label in _COUNT_METRICS:
+        for tier in TIERS:
+            key = f'num_of_{metric_key}({tier})'
+            mappings[key] = f'{metric_label} Tasks' if tier == 'ALL' else f'{metric_label} Tasks ({tier})'
+
+    mappings.update({
         'num_of_failed_tasks_due_network(ALL)': 'Failed Tasks (Network)',
         'num_of_failed_tasks_due_vm_capacity(ALL)': 'Failed Tasks (VM Capacity)',
         'num_of_failed_tasks_due_mobility(ALL)': 'Failed Tasks (Mobility)',
@@ -669,154 +673,212 @@ def format_axis_label(label, axis="x"):
         'num_of_failed_tasks_due_vm_capacity(Edge)': 'Failed Tasks (VM Capacity - Edge)',
         'num_of_failed_tasks_due_network(Mobile)': 'Failed Tasks (Network - Mobile)',
         'num_of_failed_tasks_due_vm_capacity(Mobile)': 'Failed Tasks (VM Capacity - Mobile)',
-        'num_of_completed_plus_failed_tasks(ALL)': 'Completed+Failed Tasks'
-    }
-    return label_mappings.get(label, label)
+        'num_of_completed_plus_failed_tasks(ALL)': 'Completed+Failed Tasks',
+    })
+    return mappings
+
+
+_AXIS_LABEL_MAPPINGS = _build_axis_label_mappings()
+
+
+def format_axis_label(label, axis="x"):
+    return _AXIS_LABEL_MAPPINGS.get(label, label)
 
 
 ###############################################################################
 # 10. Main
 ###############################################################################
+def select_ite_and_policy(log_data):
+    """Prompts for ITE then Policy (each 'ALL' or a single pick), returning
+    (selected_ites, ite_part, selected_policies, policy_part) where the
+    *_part strings are used as CSV filename fragments."""
+    ite_keys = natsorted(list(log_data.keys()))
+    print("\n" + "-" * 50 + "\n")
+    print("Available ITEs:")
+    ite_selection = select_option(ite_keys, "ITE")
+
+    if ite_selection == 'ALL':
+        selected_ites = ite_keys
+        ite_part = 'all_ites'
+    else:
+        selected_ites = [ite_selection]
+        ite_part = ite_selection
+
+    policy_keys = natsorted({policy for ite in selected_ites for policy in log_data.get(ite, {}).keys()})
+    print("\n" + "-" * 50 + "\n")
+    print("Available Policies:")
+    policy_selection = select_option(policy_keys, "Policies")
+
+    if policy_selection == 'ALL':
+        selected_policies = policy_keys
+        policy_part = 'all_policies'
+    else:
+        selected_policies = [policy_selection]
+        policy_part = policy_selection
+
+    return selected_ites, ite_part, selected_policies, policy_part
+
+
+def build_dataframe(log_data, selected_ites, selected_policies, selected_categories):
+    """Flattens the selected ITE/Policy/Category log lines into a single
+    pandas DataFrame, one row per (ite, policy, devices) log file."""
+    data = {key: [] for key in ['ite', 'policy_name', 'devices', 'category'] + list(all_apps_generic.values())}
+
+    for ite in selected_ites:
+        for policy in selected_policies:
+            for category in selected_categories:
+                # We only have logs under 'ALL_APPS_GENERIC' anyway
+                if category in log_data[ite].get(policy, {}):
+                    print(f"\n--- Logs for {category} in {policy} of {ite} ---")
+                    print(f"{'Log File':<50} {'Devices':<15}")
+                    print('-' * 65)
+
+                    for log_file, log_lines in log_data[ite][policy][category].items():
+                        devices = [
+                            part.replace('DEVICES', '')
+                            for part in log_file.split('_') if 'DEVICES' in part
+                        ][0]
+                        print(f"{log_file:<50} {devices:<15}")
+                        print_log_line(log_lines[0], data, ite, policy, devices, category)
+
+    df = pd.DataFrame(data)
+    numeric_cols = list(all_apps_generic.values()) + ["devices"]
+    df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
+    return df
+
+
+def compute_sorted_and_mean(df):
+    """Sorts by (policy, devices) and computes the per-(policy, devices)
+    mean across ITEs, adding the completed+failed convenience column."""
+    sorted_df = df.sort_values(by=['policy_name', 'devices'])
+
+    numeric_columns = sorted_df.select_dtypes(include=['number']).columns
+    mean_df = sorted_df.groupby(['policy_name', 'devices'], as_index=False)[numeric_columns].mean()
+
+    mean_df['num_of_completed_plus_failed_tasks(ALL)'] = \
+        mean_df['num_of_completed_tasks(ALL)'] + mean_df['num_of_failed_tasks(ALL)']
+
+    return sorted_df, mean_df
+
+
+def save_csvs(df, sorted_df, mean_df, logs_dir, input_date, ite_part, policy_part, category_part):
+    csv_dir = os.path.join(logs_dir, "csv")
+    os.makedirs(csv_dir, exist_ok=True)
+
+    file_raw = os.path.join(csv_dir, f"{input_date}_logs_{ite_part}_{policy_part}_{category_part}.csv")
+    df.to_csv(file_raw, index=False)
+    print(f"Data saved to {file_raw}")
+
+    file_sorted = os.path.join(csv_dir, f"{input_date}_logs_sorted_{ite_part}_{policy_part}_{category_part}.csv")
+    sorted_df.to_csv(file_sorted, index=False)
+    print(f"Sorted data saved to {file_sorted}")
+
+    file_mean = os.path.join(csv_dir, f"{input_date}_logs_mean_{ite_part}_{policy_part}_{category_part}.csv")
+    mean_df.to_csv(file_mean, index=False)
+    print(f"Mean data saved to {file_mean}")
+
+
+def prompt_and_plot(mean_df, input_date, graph_dir):
+    print("-" * 50)
+    while True:
+        plot_choice = input("Do you want to plot graphs automatically or manually? (a/m): ").lower()
+        if plot_choice == 'a':
+            print("\n--- Automatic Plotting ---\n")
+            plot_graph(mean_df, input_date, graph_dir, auto=True)
+            break
+        elif plot_choice == 'm':
+            plot_graph(mean_df, input_date, graph_dir, auto=False)
+            break
+        else:
+            print("Invalid choice. Please enter 'a' for automatic or 'm' for manual.")
+
+
+def run_app_evaluation(app_dir_name, results_dir):
+    """Evaluates one EdgeCloudSim application's simulation output
+    (scripts/<app_dir_name>/output/<sim_date>/...), saving everything --
+    CSVs and plots -- into `results_dir`
+    (scripts/evaluation_result/<name>_<YYYYMMDD>/, already created by
+    main()). This is the handler behind the ReSACO and three_tier
+    EVALUATION_MENU entries; see the comment above EVALUATION_MENU for how
+    to register a different kind of evaluation.
+    """
+    app_dir = os.path.join(SCRIPT_DIR, app_dir_name)
+    base_path = os.path.join(app_dir, "output")
+
+    date_folders = get_available_date_folders(base_path)
+    input_date = select_date_folder(date_folders)
+    print("\n" + "-" * 20)
+    print(f"Application: {app_dir_name}")
+    print(f"Selected simulation date: {input_date}")
+    print(f"Results directory: {results_dir}")
+    print("-" * 20)
+
+    result = process_files_by_date(base_path, results_dir, input_date)
+    if not result:
+        sys.exit(1)  # Exit if processing fails
+    log_data, logs_dir, graph_dir = result
+
+    selected_ites, ite_part, selected_policies, policy_part = select_ite_and_policy(log_data)
+
+    # ----------------------------------------------------------------
+    # Category selection is forced to ALL_APPS_GENERIC, so we skip
+    # interactive picking. We'll just print a reference list (if needed).
+    # ----------------------------------------------------------------
+    # (We keep the old block commented, as requested.)
+    """
+    category_keys = natsorted({
+        category
+        for ite in selected_ites
+        for policy in selected_policies
+        for category in log_data.get(ite, {}).get(policy, {}).keys()
+    })
+    print("\n" + "-" * 50 + "\n")
+    print("Available Categories:")
+    category_selection = select_option(category_keys, "Categories")
+
+    if category_selection == 'ALL':
+        selected_categories = category_keys
+        category_part = 'all_categories'
+    else:
+        selected_categories = [category_selection]
+        category_part = category_selection
+    """
+    # Instead, we directly use:
+    print("\n--- Forcing Category to: ALL_APPS_GENERIC ---\n")
+    selected_categories = ["ALL_APPS_GENERIC"]
+    category_part = "ALL_APPS_GENERIC"
+
+    df = build_dataframe(log_data, selected_ites, selected_policies, selected_categories)
+    sorted_df, mean_df = compute_sorted_and_mean(df)
+    save_csvs(df, sorted_df, mean_df, logs_dir, input_date, ite_part, policy_part, category_part)
+    prompt_and_plot(mean_df, input_date, graph_dir)
+
+
+# Built here (rather than at the top of the file) since each handler needs
+# the function it wraps to already exist -- a dict literal's values are
+# evaluated immediately, unlike a function body. To add a new evaluation
+# option, add one more "N": {"name": ..., "handler": ...} entry; the
+# handler just needs to accept a single `results_dir` argument.
+EVALUATION_MENU = {
+    "1": {"name": "ReSACO", "handler": partial(run_app_evaluation, "ReSACO")},
+    "2": {"name": "three_tier", "handler": partial(run_app_evaluation, "three_tier")},
+}
+
+
+def main():
+    cli_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    choice_key = prompt_for_evaluation_choice(cli_arg)
+    entry = EVALUATION_MENU[choice_key]
+
+    today = datetime.now().strftime("%Y%m%d")
+    results_dir = os.path.join(SCRIPT_DIR, EVALUATION_RESULT_DIRNAME, f"{entry['name']}_{today}")
+    os.makedirs(results_dir, exist_ok=True)
+
+    entry["handler"](results_dir)
+
+
 if __name__ == "__main__":
     try:
-        base_path = "output"
-        date_folders = get_available_date_folders(base_path)
-        input_date = select_date_folder(date_folders)
-        print("\n" + "-" * 20)
-        print(f"Selected Date: {input_date}")
-        print("-" * 20)
-
-        # Process files by date -> create logs, graph folders & read logs
-        result = process_files_by_date(base_path, input_date)
-        if not result:
-            sys.exit(1)  # Exit if processing fails
-
-        log_data, logs_dir, graph_dir = result
-
-        # Prepare a dict for building a DataFrame
-        data = {key: [] for key in ['ite', 'policy_name', 'devices', 'category'] + list(all_apps_generic.values())}
-
-        # ITE selection
-        ite_keys = natsorted(list(log_data.keys()))
-        print("\n" + "-" * 50 + "\n")
-        print("Available ITEs:")
-        ite_selection = select_option(ite_keys, "ITE")
-
-        if ite_selection == 'ALL':
-            selected_ites = ite_keys
-            ite_part = 'all_ites'
-        else:
-            selected_ites = [ite_selection]
-            ite_part = ite_selection
-
-        # Policy selection
-        policy_keys = natsorted({policy for ite in selected_ites for policy in log_data.get(ite, {}).keys()})
-        print("\n" + "-" * 50 + "\n")
-        print("Available Policies:")
-        policy_selection = select_option(policy_keys, "Policies")
-
-        if policy_selection == 'ALL':
-            selected_policies = policy_keys
-            policy_part = 'all_policies'
-        else:
-            selected_policies = [policy_selection]
-            policy_part = policy_selection
-
-        # ----------------------------------------------------------------
-        # Category selection is forced to ALL_APPS_GENERIC, so we skip 
-        # interactive picking. We'll just print a reference list (if needed).
-        # ----------------------------------------------------------------
-        # (We keep the old block commented, as requested.)
-        """
-        category_keys = natsorted({
-            category
-            for ite in selected_ites
-            for policy in selected_policies
-            for category in log_data.get(ite, {}).get(policy, {}).keys()
-        })
-        print("\n" + "-" * 50 + "\n")
-        print("Available Categories:")
-        category_selection = select_option(category_keys, "Categories")
-
-        if category_selection == 'ALL':
-            selected_categories = category_keys
-            category_part = 'all_categories'
-        else:
-            selected_categories = [category_selection]
-            category_part = category_selection
-        """
-        # Instead, we directly use:
-        print("\n--- Forcing Category to: ALL_APPS_GENERIC ---\n")
-        selected_categories = ["ALL_APPS_GENERIC"]
-        category_part = "ALL_APPS_GENERIC"
-
-        # Build the DataFrame based on the selected ITE/Policy/Category
-        for ite in selected_ites:
-            for policy in selected_policies:
-                for category in selected_categories:
-                    # We only have logs under 'ALL_APPS_GENERIC' anyway
-                    if category in log_data[ite].get(policy, {}):
-                        print(f"\n--- Logs for {category} in {policy} of {ite} ---")
-                        print(f"{'Log File':<50} {'Devices':<15}")
-                        print('-' * 65)
-
-                        for log_file, log_lines in log_data[ite][policy][category].items():
-                            devices = [
-                                part.replace('DEVICES', '')
-                                for part in log_file.split('_') if 'DEVICES' in part
-                            ][0]
-                            print(f"{log_file:<50} {devices:<15}")
-                            print_log_line(log_lines[0], data, ite, policy, devices, category)
-
-        df = pd.DataFrame(data)
-
-        # Convert numeric columns
-        numeric_cols = list(all_apps_generic.values()) + ["devices"]
-        df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
-
-        # Sort the DataFrame
-        sorted_df = df.sort_values(by=['policy_name', 'devices'])
-
-        # Group by [policy_name, devices] and compute mean
-        numeric_columns = sorted_df.select_dtypes(include=['number']).columns
-        mean_df = sorted_df.groupby(['policy_name', 'devices'], as_index=False)[numeric_columns].mean()
-
-        # Add a new column: completed + failed
-        mean_df['num_of_completed_plus_failed_tasks(ALL)'] = \
-            mean_df['num_of_completed_tasks(ALL)'] + mean_df['num_of_failed_tasks(ALL)']
-
-        # Directory for CSV files: logs_dir/csv
-        csv_dir = os.path.join(logs_dir, "csv")
-        os.makedirs(csv_dir, exist_ok=True)
-
-        # 1) Raw
-        file_raw = os.path.join(csv_dir, f"{input_date}_logs_{ite_part}_{policy_part}_{category_part}.csv")
-        df.to_csv(file_raw, index=False)
-        print(f"Data saved to {file_raw}")
-
-        # 2) Sorted
-        file_sorted = os.path.join(csv_dir, f"{input_date}_logs_sorted_{ite_part}_{policy_part}_{category_part}.csv")
-        sorted_df.to_csv(file_sorted, index=False)
-        print(f"Sorted data saved to {file_sorted}")
-
-        # 3) Mean
-        file_mean = os.path.join(csv_dir, f"{input_date}_logs_mean_{ite_part}_{policy_part}_{category_part}.csv")
-        mean_df.to_csv(file_mean, index=False)
-        print(f"Mean data saved to {file_mean}")
-
-        # Ask if the user wants to plot graphs
-        print("-" * 50)
-        while True:
-            plot_choice = input("Do you want to plot graphs automatically or manually? (a/m): ").lower()
-            if plot_choice == 'a':
-                print("\n--- Automatic Plotting ---\n")
-                plot_graph(mean_df, input_date, graph_dir, auto=True)
-                break
-            elif plot_choice == 'm':
-                plot_graph(mean_df, input_date, graph_dir, auto=False)
-                break
-            else:
-                print("Invalid choice. Please enter 'a' for automatic or 'm' for manual.")
-
+        main()
     except KeyboardInterrupt:
         print("\n--- Exit ---")

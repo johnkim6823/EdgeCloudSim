@@ -134,22 +134,166 @@ tail -f output/date/ite_1.log
 | RANDOM                 | - Randomly assigns tasks to one of the following:<br>&nbsp;&nbsp;&nbsp;- Mobile device<br>&nbsp;&nbsp;&nbsp;- Edge server<br>&nbsp;&nbsp;&nbsp;- Cloud. |
 | EDGE_PRIORITY          | - Prioritizes the edge server.<br>- If bandwidth > 6:<br>&nbsp;&nbsp;&nbsp;- Offload to edge server if utilization ≤ 90%<br>&nbsp;&nbsp;&nbsp;- Offload to cloud if edge utilization > 90%.<br>- If bandwidth > 3:<br>&nbsp;&nbsp;&nbsp;- Offload to cloud if edge utilization > 90%<br>&nbsp;&nbsp;&nbsp;- Offload to mobile if edge utilization < 20%<br>&nbsp;&nbsp;&nbsp;- Otherwise, offload to edge server.<br>- If bandwidth ≤ 3: keep task on mobile. |
 
+## ReSACO
+
+A separate application (`scripts/ReSACO`, `src/edu/boun/edgecloudsim/applications/resaco`)
+that delegates offloading decisions to trained RL policies served by a
+Python bridge process (see [ReSACO/README.md](ReSACO/README.md)),
+instead of a hand-written heuristic. It reuses `three_tier`'s
+`ThreeTierNetworkModel` and `ThreeTierMobileServerManager` unchanged;
+`three_tier` itself is untouched.
+
+The bridge serves five algorithms from the ReSACO paper's Section V-C
+comparison at once, each selectable as its own `orchestrator_policies`
+entry -- listing all five (the default in `scripts/ReSACO/config/default_config.properties`)
+runs all five through the *same* real CloudSim simulation (topology,
+network model, workload) for a like-for-like comparison, not just ReSACO
+on its own.
+
+| Policy         | Description                                                                                                                                                     |
+|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| RESACO         | Reptile-meta-trained SAC (Algorithm 4 of the paper). Off-policy: keeps adapting online from real reported outcomes. |
+| SAC_BASELINE   | Plain SAC, no meta-initialization. Off-policy, also adapts online. |
+| DDPG_BASELINE  | DDPG, adapted to the discrete offload action space. Off-policy, also adapts online. |
+| A2C_BASELINE   | Synchronous Advantage Actor-Critic. On-policy: served frozen, exactly as trained by `train_baselines.py` (on-policy methods don't have a well-defined single-transition online update). |
+| A3C_BASELINE   | Asynchronous A3C. On-policy: served frozen, same as A2C_BASELINE. |
+
+For every task, `ReSACOEdgeOrchestrator` sends the current state (task
+size, device/edge/cloud utilization, network bandwidth) to whichever
+algorithm the active policy names, over TCP, and offloads to whatever tier
+(device / edge / cloud) it returns; the task's real outcome is reported
+back afterwards. If the bridge or the requested algorithm's checkpoint is
+unavailable, it falls back to a static EDGE_PRIORITY-style heuristic
+instead of crashing -- so the simulation is always safe to run even if
+you forgot to start the bridge, it just won't be using RL for that run.
+
+### 1. Train (once) or reuse existing checkpoints
+
+Skip this if `ReSACO/checkpoints/*.pt` already exist.
+
+```
+cd ReSACO
+python -m venv venv && venv/Scripts/pip install -r requirements.txt   # first time only
+venv/Scripts/python scripts/train_meta.py          # -> checkpoints/theta_star.pt (ReSACO)
+venv/Scripts/python scripts/train_baselines.py     # -> checkpoints/{sac_no_meta,ddpg,a2c,a3c}.pt
+```
+
+### 2. Start the policy bridge (leave this running in its own terminal)
+
+```
+cd ReSACO
+venv/Scripts/python bridge/inference_server.py
+```
+
+Missing checkpoints are served as untrained (random) policies with a
+warning rather than refused, so it's fine to start this before every
+baseline is trained -- just re-run `train_baselines.py` and restart the
+bridge later to pick up the real weights.
+
+### 3. Compile and run EdgeCloudSim
+
+```
+cd scripts/ReSACO
+./compile.sh
+```
+
+For a quick single run (edit `min/max_number_of_mobile_devices` in
+`config/default_config.properties` down to something small first, e.g.
+50, or pass a scaled-down config file):
+```
+java -classpath '../../bin:../../lib/cloudsim-4.0.jar:../../lib/commons-math3-3.6.1.jar:../../lib/colt.jar' \
+  edu.boun.edgecloudsim.applications.resaco.ReSACOMainApp \
+  config/default_config.properties config/edge_devices.xml config/applications.xml output/test 1
+```
+
+For the full experiment sweep (all 5 policies x every device count in the
+config, run in parallel, matching `three_tier`'s workflow):
+```
+./run_scenarios.sh {# of parallel processes} {# of iterations}
+tail -f output/<date>/ite_1.log
+```
+
+Note: the RL-backed policies (RESACO/SAC/DDPG/A2C/A3C) are noticeably
+slower wall-clock than static heuristics like EDGE_PRIORITY, since every
+single task decision is a real blocking TCP round-trip to the Python
+bridge (plus a PyTorch inference, and for the off-policy algorithms a
+training step). Budget accordingly for the full device-count sweep.
+
+Results land under `scripts/ReSACO/output/...` in the same per-policy
+log/CSV format as `three_tier`.
+
 # evaluate.py
 
 ## Overview
-`evaluate.py` processes simulation results (specifically, `.tar.gz` and `.log` files) generated under `output/<DATE>/default_config/`.  
-It organizes and extracts logs into a structured folder hierarchy, converts them into a single-line format, aggregates the data into CSV files (raw, sorted, mean), and produces various plots automatically or manually.
+`scripts/evaluate.py` is **shared across every EdgeCloudSim application** in
+this repo (`three_tier`, `resaco`, or any future one) -- there is only one
+copy, not one per application. It processes simulation results
+(`.tar.gz` and `.log` files) generated under `scripts/<app>/output/<DATE>/default_config/`,
+organizes and extracts logs into a structured folder hierarchy, converts
+them into a single-line format, aggregates the data into CSV files (raw,
+sorted, mean), and produces plots automatically or manually.
+
+Since `three_tier` and `resaco`/ReSACO use entirely different
+`orchestrator_policies` values (`ONLY_MOBILE`, `EDGE_PRIORITY`, ... vs.
+`RESACO`, `SAC_BASELINE`, ...), the plot legend/order is derived at
+runtime from whichever policy names actually appear in the selected run's
+data (natural-sorted) -- nothing is hardcoded per application, so the same
+script works unmodified for both, and for any new application added later.
+
+Run it with no arguments for an interactive menu, or pass the menu number
+or application name to skip straight to it:
+```
+python scripts/evaluate.py                # interactive menu
+python scripts/evaluate.py three_tier      # skip the prompt, evaluate three_tier's results
+python scripts/evaluate.py ReSACO          # skip the prompt, evaluate ReSACO's results
+python scripts/evaluate.py 1               # same as "ReSACO" -- menu number also works
+```
+```
+실행할 평가 방식을 선택하세요:
+1. ReSACO
+2. three_tier
+입력 (번호):
+```
+
+The menu is a plain `EVALUATION_MENU = {"1": {...}, "2": {...}}` dict at
+the bottom of the file mapping a number to a display name and a handler
+function -- adding a third evaluation option later (not necessarily just
+another app's `output/` folder; could be a completely different flow, e.g.
+wiring up `ReSACO/scripts/plot_convergence.py`) means adding one more
+entry there, no branching logic elsewhere needs to change.
+
+All results (CSVs, plots) are saved under
+**`scripts/evaluation_result/<name>_<YYYYMMDD>/`** -- `<name>` is the
+chosen menu entry's display name and `<YYYYMMDD>` is *today's* date (when
+you ran the evaluation), independent of which simulation run's date you
+pick in step 1 below. E.g. picking "ReSACO" on 2026-07-16 always writes to
+`scripts/evaluation_result/ReSACO_20260716/`, no matter which of
+ReSACO's past simulation runs you're evaluating -- re-running the same
+choice again the same day overwrites that folder's `logs/`/`graph/`
+contents rather than accumulating duplicates.
+
+**Nothing generated by a simulation run or by this script is committed.**
+Both the raw simulation output (`scripts/<app>/output/`, matched by the
+root `.gitignore`'s `output*` pattern -- which, having no leading `/`,
+applies at every directory depth, so one rule covers every application's
+`output/` folder without needing a `.gitignore` in each `scripts/<app>/`
+directory) and this script's own results
+(`scripts/evaluation_result/`) are git-ignored. Only the *code* that
+produces them is tracked.
 
 ---
 
 ## Workflow
 
+0. **Select an Evaluation** -- interactive menu (or skip via CLI arg, see above).
+
 1. **Select a Date Folder**  
-   - Reads all subfolders in `output/` that match the date format.  
+   - Reads all subfolders in `scripts/<app>/output/` (the simulation's own
+     output, not the evaluation results) that match the date format.
    - Prompts the user to choose one (or pick `0` for the latest date).
 
 2. **Create Result Structure**  
-   - Automatically creates `results/<DATE>/logs` and `results/<DATE>/graph`.  
+   - Automatically creates `scripts/evaluation_result/<name>_<YYYYMMDD>/logs` and `.../graph`.
    - This is where logs are reorganized and final outputs (CSV, plots) are stored.
 
 3. **Extract & Categorize Logs**  
@@ -161,12 +305,12 @@ It organizes and extracts logs into a structured folder hierarchy, converts them
    - Offers menu selections to filter by ITE, Policy, Category, or select `ALL`.
 
 5. **Save CSV Files**  
-   - Creates **raw**, **sorted**, and **mean** CSV files under `results/<DATE>/logs/csv`.
+   - Creates **raw**, **sorted**, and **mean** CSV files under `scripts/evaluation_result/<name>_<YYYYMMDD>/logs/csv`.
 
 6. **Plot Generation**  
    - **Automatic Mode**: Generates a predefined set of (x, y) plots (usually `x = devices` and various `y` metrics).  
    - **Manual Mode**: User picks columns for X and Y axes interactively.  
-   - Saves `.png` plots and their respective data (`.csv`) under `results/<DATE>/graph`.
+   - Saves `.png` plots and their respective data (`.csv`) under `scripts/evaluation_result/<name>_<YYYYMMDD>/graph`, split into `ALL`/`CLOUD`/`EDGE`/`MOBILE`/`OTHERS` subfolders. Policy colors/markers/legend order are whatever policies are present in that run, natural-sorted.
 
 ---
 

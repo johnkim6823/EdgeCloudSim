@@ -1,25 +1,18 @@
 /*
- * Title:        EdgeCloudSim - Mobile Device Manager
+ * Title:        EdgeCloudSim - ReSACO Mobile Device Manager
  *
  * Description:
- * Mobile Device Manager is one of the most important component
- * in EdgeCloudSim. It is responsible for creating the tasks,
- * submitting them to the related VM with respect to the
- * Edge Orchestrator decision, and takes proper actions when
- * the execution of the tasks are finished. It also feeds the
- * SimLogger with the relevant results.
-
- * SampleMobileDeviceManager sends tasks to the edge servers or
- * mobile device processing unit.
- *
- * If you want to use different topology, you should modify
- * the flow implemented in this class.
+ * Same task lifecycle as ThreeTierMobileDeviceManager (creates tasks,
+ * submits them to the VM chosen by the orchestrator, reacts to
+ * completion/failure events), plus: whenever a task's real outcome
+ * becomes known, it is reported back to the ReSACO bridge
+ * (ReSACOBridgeClient.reportOutcome) so the served policy's online
+ * update (Algorithm 3/4, where applicable) can learn from it.
  *
  * Licence:      GPL - http://www.gnu.org/copyleft/gpl.html
- * Copyright (c) 2017, Bogazici University, Istanbul, Turkey
  */
 
-package edu.boun.edgecloudsim.applications.three_tier;
+package edu.boun.edgecloudsim.applications.resaco;
 
 import org.cloudbus.cloudsim.UtilizationModel;
 import org.cloudbus.cloudsim.UtilizationModelFull;
@@ -28,6 +21,7 @@ import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.CloudSimTags;
 import org.cloudbus.cloudsim.core.SimEvent;
 
+import edu.boun.edgecloudsim.applications.three_tier.ThreeTierNetworkModel;
 import edu.boun.edgecloudsim.core.SimManager;
 import edu.boun.edgecloudsim.core.SimSettings;
 import edu.boun.edgecloudsim.core.SimSettings.NETWORK_DELAY_TYPES;
@@ -42,8 +36,8 @@ import edu.boun.edgecloudsim.utils.Location;
 import edu.boun.edgecloudsim.utils.SimLogger;
 
 
-public class ThreeTierMobileDeviceManager extends MobileDeviceManager {
-	private static final int BASE = 100000; //start from base in order not to conflict cloudsim tag!
+public class ReSACOMobileDeviceManager extends MobileDeviceManager {
+	private static final int BASE = 200000; //start from base in order not to conflict cloudsim tag or the three_tier app's tags!
 
 	private static final int UPDATE_MM1_QUEUE_MODEL = BASE + 1;
 	private static final int REQUEST_RECEIVED_BY_MOBILE_DEVICE = BASE + 2;
@@ -56,10 +50,9 @@ public class ThreeTierMobileDeviceManager extends MobileDeviceManager {
 
 	private static final double MM1_QUEUE_MODEL_UPDATE_INTEVAL = 5; //seconds
 
+	private int taskIdCounter = 0;
 
-	private int taskIdCounter=0;
-
-	public ThreeTierMobileDeviceManager() throws Exception{
+	public ReSACOMobileDeviceManager() throws Exception {
 	}
 
 	@Override
@@ -76,104 +69,97 @@ public class ThreeTierMobileDeviceManager extends MobileDeviceManager {
 		super.startEntity();
 	}
 
-	/**
-	 * Submit cloudlets to the created VMs.
-	 *
-	 * @pre $none
-	 * @post $none
-	 */
 	protected void submitCloudlets() {
 		//do nothing!
 	}
 
 	/**
-	 * Process a cloudlet return event.
-	 *
-	 * @param ev a SimEvent object
-	 * @pre ev != $null
-	 * @post $none
+	 * Reports a task's real outcome back to the ReSACO bridge so the served
+	 * policy's online update (Algorithm 3/4, where applicable) can learn
+	 * from it. Harmless no-op (silently ignored bridge-side) if the task
+	 * was actually routed by the fallback heuristic (e.g. the bridge was
+	 * down at submission time).
 	 */
+	private void reportReSACOOutcome(Task task, boolean success) {
+		String requestId = ReSACOStateBuilder.requestIdFor(task);
+		double reward;
+		if (success) {
+			double serviceTime = ReSACOBridgeClient.getInstance().elapsedSince(requestId);
+			if (serviceTime < 0) {
+				return; // this task wasn't decided by the bridge (e.g. it was down at submission time)
+			}
+			reward = -serviceTime;
+		} else {
+			reward = -(ReSACOStateBuilder.RESACO_TMAX_SECONDS + 1);
+		}
+		String algo = SimManager.getInstance().getOrchestratorPolicy();
+		double[] nextState = ReSACOStateBuilder.buildStateForDevice(task.getMobileDeviceId());
+		ReSACOBridgeClient.getInstance().reportOutcome(algo, requestId, reward, true, nextState);
+	}
+
 	protected void processCloudletReturn(SimEvent ev) {
 		NetworkModel networkModel = SimManager.getInstance().getNetworkModel();
 		Task task = (Task) ev.getData();
 
 		SimLogger.getInstance().taskExecuted(task.getCloudletId());
 
-		if(task.getAssociatedDatacenterId() == SimSettings.CLOUD_DATACENTER_ID){
-			//SimLogger.printLine(CloudSim.clock() + ": " + getName() + ": task #" + task.getCloudletId() + " received from cloud");
+		if (task.getAssociatedDatacenterId() == SimSettings.CLOUD_DATACENTER_ID) {
 			double WanDelay = networkModel.getDownloadDelay(SimSettings.CLOUD_DATACENTER_ID, task.getMobileDeviceId(), task);
-			if(WanDelay > 0)
-			{
-				Location currentLocation = SimManager.getInstance().getMobilityModel().getLocation(task.getMobileDeviceId(),CloudSim.clock()+WanDelay);
-				if(task.getSubmittedLocation().getServingWlanId() == currentLocation.getServingWlanId())
-				{
+			if (WanDelay > 0) {
+				Location currentLocation = SimManager.getInstance().getMobilityModel().getLocation(task.getMobileDeviceId(), CloudSim.clock() + WanDelay);
+				if (task.getSubmittedLocation().getServingWlanId() == currentLocation.getServingWlanId()) {
 					networkModel.downloadStarted(task.getSubmittedLocation(), SimSettings.CLOUD_DATACENTER_ID);
 					SimLogger.getInstance().setDownloadDelay(task.getCloudletId(), WanDelay, NETWORK_DELAY_TYPES.WAN_DELAY);
 					schedule(getId(), WanDelay, RESPONSE_RECEIVED_BY_MOBILE_DEVICE, task);
-				}
-				else
-				{
+				} else {
 					SimLogger.getInstance().failedDueToMobility(task.getCloudletId(), CloudSim.clock());
+					reportReSACOOutcome(task, false);
 				}
-			}
-			else
-			{
+			} else {
 				SimLogger.getInstance().failedDueToBandwidth(task.getCloudletId(), CloudSim.clock(), NETWORK_DELAY_TYPES.WAN_DELAY);
+				reportReSACOOutcome(task, false);
 			}
 		}
 
-		else if(task.getAssociatedDatacenterId() == SimSettings.GENERIC_EDGE_DEVICE_ID){
+		else if (task.getAssociatedDatacenterId() == SimSettings.GENERIC_EDGE_DEVICE_ID) {
 			int nextEvent = RESPONSE_RECEIVED_BY_MOBILE_DEVICE;
 			int nextDeviceForNetworkModel = SimSettings.GENERIC_EDGE_DEVICE_ID;
 			NETWORK_DELAY_TYPES delayType = NETWORK_DELAY_TYPES.WLAN_DELAY;
 			double delay = networkModel.getDownloadDelay(task.getAssociatedHostId(), task.getMobileDeviceId(), task);
 
-			EdgeHost host = (EdgeHost)(SimManager.
+			EdgeHost host = (EdgeHost) (SimManager.
 					getInstance().
 					getEdgeServerManager().
 					getDatacenterList().get(task.getAssociatedHostId()).
 					getHostList().get(0));
 
 			//if neighbor edge device is selected
-			if(host.getLocation().getServingWlanId() != task.getSubmittedLocation().getServingWlanId())
-			{
+			if (host.getLocation().getServingWlanId() != task.getSubmittedLocation().getServingWlanId()) {
 				delay = networkModel.getDownloadDelay(SimSettings.GENERIC_EDGE_DEVICE_ID, SimSettings.GENERIC_EDGE_DEVICE_ID, task);
 				nextEvent = RESPONSE_RECEIVED_BY_EDGE_DEVICE_TO_RELAY_MOBILE_DEVICE;
 				nextDeviceForNetworkModel = SimSettings.GENERIC_EDGE_DEVICE_ID + 1;
 				delayType = NETWORK_DELAY_TYPES.MAN_DELAY;
 			}
 
-			if(delay > 0)
-			{
-				Location currentLocation = SimManager.getInstance().getMobilityModel().getLocation(task.getMobileDeviceId(),CloudSim.clock()+delay);
-				if(task.getSubmittedLocation().getServingWlanId() == currentLocation.getServingWlanId())
-				{
+			if (delay > 0) {
+				Location currentLocation = SimManager.getInstance().getMobilityModel().getLocation(task.getMobileDeviceId(), CloudSim.clock() + delay);
+				if (task.getSubmittedLocation().getServingWlanId() == currentLocation.getServingWlanId()) {
 					networkModel.downloadStarted(currentLocation, nextDeviceForNetworkModel);
 					SimLogger.getInstance().setDownloadDelay(task.getCloudletId(), delay, delayType);
 
 					schedule(getId(), delay, nextEvent, task);
-				}
-				else
-				{
+				} else {
 					SimLogger.getInstance().failedDueToMobility(task.getCloudletId(), CloudSim.clock());
+					reportReSACOOutcome(task, false);
 				}
-			}
-			else
-			{
+			} else {
 				SimLogger.getInstance().failedDueToBandwidth(task.getCloudletId(), CloudSim.clock(), delayType);
+				reportReSACOOutcome(task, false);
 			}
 		}
-		else if(task.getAssociatedDatacenterId() == SimSettings.MOBILE_DATACENTER_ID) {
+		else if (task.getAssociatedDatacenterId() == SimSettings.MOBILE_DATACENTER_ID) {
 			SimLogger.getInstance().taskEnded(task.getCloudletId(), CloudSim.clock());
-
-			// Track CPU utilization after the task completes and log it
-			//double cpuUtilization = task.getUtilizationModelCpu().getUtilization(CloudSim.clock());
-			// SimLogger.printLine("Task #" + task.getCloudletId() + " on Mobile Device ID: " + task.getMobileDeviceId() +
-			// 		" finished. CPU Utilization: " + cpuUtilization);
-
-			/*
-			 * TODO: To account for D2D communication, add D2D delay calculation and logging here
-			 */
+			reportReSACOOutcome(task, true);
 		}
 
 		else {
@@ -192,104 +178,85 @@ public class ThreeTierMobileDeviceManager extends MobileDeviceManager {
 		NetworkModel networkModel = SimManager.getInstance().getNetworkModel();
 
 		switch (ev.getTag()) {
-			case UPDATE_MM1_QUEUE_MODEL:
-			{
-				((ThreeTierNetworkModel)networkModel).updateMM1QueeuModel();
+			case UPDATE_MM1_QUEUE_MODEL: {
+				((ThreeTierNetworkModel) networkModel).updateMM1QueeuModel();
 				schedule(getId(), MM1_QUEUE_MODEL_UPDATE_INTEVAL, UPDATE_MM1_QUEUE_MODEL);
-
 				break;
 			}
-			case REQUEST_RECEIVED_BY_MOBILE_DEVICE:
-			{
+			case REQUEST_RECEIVED_BY_MOBILE_DEVICE: {
 				Task task = (Task) ev.getData();
 				submitTaskToVm(task, SimSettings.VM_TYPES.MOBILE_VM);
 				break;
 			}
-			case REQUEST_RECEIVED_BY_EDGE_DEVICE:
-			{
+			case REQUEST_RECEIVED_BY_EDGE_DEVICE: {
 				Task task = (Task) ev.getData();
 				networkModel.uploadFinished(task.getSubmittedLocation(), SimSettings.GENERIC_EDGE_DEVICE_ID);
 				submitTaskToVm(task, SimSettings.VM_TYPES.EDGE_VM);
 				break;
 			}
-			case REQUEST_RECEIVED_BY_CLOUD:
-			{
+			case REQUEST_RECEIVED_BY_CLOUD: {
 				Task task = (Task) ev.getData();
 				networkModel.uploadFinished(task.getSubmittedLocation(), SimSettings.CLOUD_DATACENTER_ID);
 				submitTaskToVm(task, SimSettings.VM_TYPES.CLOUD_VM);
 				break;
 			}
-
-			case REQUEST_RECEIVED_BY_REMOTE_EDGE_DEVICE:
-			{
+			case REQUEST_RECEIVED_BY_REMOTE_EDGE_DEVICE: {
 				Task task = (Task) ev.getData();
-				networkModel.uploadFinished(task.getSubmittedLocation(), SimSettings.GENERIC_EDGE_DEVICE_ID+1);
+				networkModel.uploadFinished(task.getSubmittedLocation(), SimSettings.GENERIC_EDGE_DEVICE_ID + 1);
 				submitTaskToVm(task, SimSettings.VM_TYPES.EDGE_VM);
-
 				break;
 			}
-			case REQUEST_RECEIVED_BY_EDGE_DEVICE_TO_RELAY_NEIGHBOR:
-			{
+			case REQUEST_RECEIVED_BY_EDGE_DEVICE_TO_RELAY_NEIGHBOR: {
 				Task task = (Task) ev.getData();
 				networkModel.uploadFinished(task.getSubmittedLocation(), SimSettings.GENERIC_EDGE_DEVICE_ID);
 
-				double manDelay =  networkModel.getUploadDelay(SimSettings.GENERIC_EDGE_DEVICE_ID, SimSettings.GENERIC_EDGE_DEVICE_ID, task);
-				if(manDelay>0){
-					networkModel.uploadStarted(task.getSubmittedLocation(), SimSettings.GENERIC_EDGE_DEVICE_ID+1);
+				double manDelay = networkModel.getUploadDelay(SimSettings.GENERIC_EDGE_DEVICE_ID, SimSettings.GENERIC_EDGE_DEVICE_ID, task);
+				if (manDelay > 0) {
+					networkModel.uploadStarted(task.getSubmittedLocation(), SimSettings.GENERIC_EDGE_DEVICE_ID + 1);
 					SimLogger.getInstance().setUploadDelay(task.getCloudletId(), manDelay, NETWORK_DELAY_TYPES.MAN_DELAY);
 					schedule(getId(), manDelay, REQUEST_RECEIVED_BY_REMOTE_EDGE_DEVICE, task);
-				}
-				else
-				{
-					//SimLogger.printLine("Task #" + task.getCloudletId() + " cannot assign to any VM");
+				} else {
 					SimLogger.getInstance().rejectedDueToBandwidth(
 							task.getCloudletId(),
 							CloudSim.clock(),
 							SimSettings.VM_TYPES.EDGE_VM.ordinal(),
 							NETWORK_DELAY_TYPES.MAN_DELAY);
+					reportReSACOOutcome(task, false);
 				}
-
 				break;
 			}
-			case RESPONSE_RECEIVED_BY_EDGE_DEVICE_TO_RELAY_MOBILE_DEVICE:
-			{
+			case RESPONSE_RECEIVED_BY_EDGE_DEVICE_TO_RELAY_MOBILE_DEVICE: {
 				Task task = (Task) ev.getData();
-				networkModel.downloadFinished(task.getSubmittedLocation(), SimSettings.GENERIC_EDGE_DEVICE_ID+1);
+				networkModel.downloadFinished(task.getSubmittedLocation(), SimSettings.GENERIC_EDGE_DEVICE_ID + 1);
 
-				//SimLogger.printLine(CloudSim.clock() + ": " + getName() + ": task #" + task.getCloudletId() + " received from edge");
 				double delay = networkModel.getDownloadDelay(task.getAssociatedHostId(), task.getMobileDeviceId(), task);
 
-				if(delay > 0)
-				{
-					Location currentLocation = SimManager.getInstance().getMobilityModel().getLocation(task.getMobileDeviceId(),CloudSim.clock()+delay);
-					if(task.getSubmittedLocation().getServingWlanId() == currentLocation.getServingWlanId())
-					{
+				if (delay > 0) {
+					Location currentLocation = SimManager.getInstance().getMobilityModel().getLocation(task.getMobileDeviceId(), CloudSim.clock() + delay);
+					if (task.getSubmittedLocation().getServingWlanId() == currentLocation.getServingWlanId()) {
 						networkModel.downloadStarted(currentLocation, SimSettings.GENERIC_EDGE_DEVICE_ID);
 						SimLogger.getInstance().setDownloadDelay(task.getCloudletId(), delay, NETWORK_DELAY_TYPES.WLAN_DELAY);
 						schedule(getId(), delay, RESPONSE_RECEIVED_BY_MOBILE_DEVICE, task);
-					}
-					else
-					{
+					} else {
 						SimLogger.getInstance().failedDueToMobility(task.getCloudletId(), CloudSim.clock());
+						reportReSACOOutcome(task, false);
 					}
-				}
-				else
-				{
+				} else {
 					SimLogger.getInstance().failedDueToBandwidth(task.getCloudletId(), CloudSim.clock(), NETWORK_DELAY_TYPES.WLAN_DELAY);
+					reportReSACOOutcome(task, false);
 				}
-
 				break;
 			}
-			case RESPONSE_RECEIVED_BY_MOBILE_DEVICE:
-			{
+			case RESPONSE_RECEIVED_BY_MOBILE_DEVICE: {
 				Task task = (Task) ev.getData();
 
-				if(task.getAssociatedDatacenterId() == SimSettings.CLOUD_DATACENTER_ID)
+				if (task.getAssociatedDatacenterId() == SimSettings.CLOUD_DATACENTER_ID)
 					networkModel.downloadFinished(task.getSubmittedLocation(), SimSettings.CLOUD_DATACENTER_ID);
 				else
 					networkModel.downloadFinished(task.getSubmittedLocation(), SimSettings.GENERIC_EDGE_DEVICE_ID);
 
 				SimLogger.getInstance().taskEnded(task.getCloudletId(), CloudSim.clock());
+				reportReSACOOutcome(task, true);
 				break;
 			}
 			default:
@@ -308,118 +275,88 @@ public class ThreeTierMobileDeviceManager extends MobileDeviceManager {
 
 		NetworkModel networkModel = SimManager.getInstance().getNetworkModel();
 
-		//create a task
 		Task task = createTask(edgeTask);
 
 		Location currentLocation = SimManager.getInstance().getMobilityModel().
 				getLocation(task.getMobileDeviceId(), CloudSim.clock());
 
-		//set location of the mobile device which generates this task
 		task.setSubmittedLocation(currentLocation);
 
-		//add related task to log list
 		SimLogger.getInstance().addLog(task.getMobileDeviceId(),
 				task.getCloudletId(),
 				task.getTaskType(),
-				(int)task.getCloudletLength(),
-				(int)task.getCloudletFileSize(),
-				(int)task.getCloudletOutputSize());
+				(int) task.getCloudletLength(),
+				(int) task.getCloudletFileSize(),
+				(int) task.getCloudletOutputSize());
 
 		int nextHopId = SimManager.getInstance().getEdgeOrchestrator().getDeviceToOffload(task);
 
-		if(nextHopId == SimSettings.CLOUD_DATACENTER_ID){
+		if (nextHopId == SimSettings.CLOUD_DATACENTER_ID) {
 			delay = networkModel.getUploadDelay(task.getMobileDeviceId(), SimSettings.CLOUD_DATACENTER_ID, task);
 			vmType = SimSettings.VM_TYPES.CLOUD_VM;
 			nextEvent = REQUEST_RECEIVED_BY_CLOUD;
 			delayType = NETWORK_DELAY_TYPES.WAN_DELAY;
 			nextDeviceForNetworkModel = SimSettings.CLOUD_DATACENTER_ID;
 		}
-		else if(nextHopId == SimSettings.GENERIC_EDGE_DEVICE_ID){
+		else if (nextHopId == SimSettings.GENERIC_EDGE_DEVICE_ID) {
 			delay = networkModel.getUploadDelay(task.getMobileDeviceId(), nextHopId, task);
 			vmType = SimSettings.VM_TYPES.EDGE_VM;
 			nextEvent = REQUEST_RECEIVED_BY_EDGE_DEVICE;
 			delayType = NETWORK_DELAY_TYPES.WLAN_DELAY;
 			nextDeviceForNetworkModel = SimSettings.GENERIC_EDGE_DEVICE_ID;
 		}
-
-		else if(nextHopId == SimSettings.MOBILE_DATACENTER_ID){
+		else if (nextHopId == SimSettings.MOBILE_DATACENTER_ID) {
 			vmType = VM_TYPES.MOBILE_VM;
 			nextEvent = REQUEST_RECEIVED_BY_MOBILE_DEVICE;
-
-			/*
-			 * TODO: In this scenario device to device (D2D) communication is ignored.
-			 * If you want to consider D2D communication, you should calculate D2D
-			 * network delay here.
-			 *
-			 * You should also add D2D_DELAY to the following enum in SimSettings
-			 * public static enum NETWORK_DELAY_TYPES { WLAN_DELAY, MAN_DELAY, WAN_DELAY }
-			 *
-			 * If you want to get statistics of the D2D networking, you should modify
-			 * SimLogger in a way to consider D2D_DELAY statistics.
-			 */
 		}
 		else {
 			SimLogger.printLine("Unknown nextHopId! Terminating simulation...");
 			System.exit(0);
 		}
 
-		if(delay>0 || nextHopId == SimSettings.MOBILE_DATACENTER_ID){
+		if (delay > 0 || nextHopId == SimSettings.MOBILE_DATACENTER_ID) {
 
 			Vm selectedVM = SimManager.getInstance().getEdgeOrchestrator().getVmToOffload(task, nextHopId);
 
-			if(selectedVM != null){
-				//set related host id
+			if (selectedVM != null) {
 				task.setAssociatedDatacenterId(nextHopId);
-
-				//set related host id
 				task.setAssociatedHostId(selectedVM.getHost().getId());
-
-				//set related vm id
 				task.setAssociatedVmId(selectedVM.getId());
 
-				//bind task to related VM
 				getCloudletList().add(task);
 				bindCloudletToVm(task.getCloudletId(), selectedVM.getId());
 
 				SimLogger.getInstance().taskStarted(task.getCloudletId(), CloudSim.clock());
 
-				if(nextHopId != SimSettings.MOBILE_DATACENTER_ID) {
+				if (nextHopId != SimSettings.MOBILE_DATACENTER_ID) {
 					networkModel.uploadStarted(task.getSubmittedLocation(), nextDeviceForNetworkModel);
 					SimLogger.getInstance().setUploadDelay(task.getCloudletId(), delay, delayType);
 				}
 
 				schedule(getId(), delay, nextEvent, task);
-			}
-			else{
-				//SimLogger.printLine("Task #" + task.getCloudletId() + " cannot assign to any VM");
+			} else {
 				SimLogger.getInstance().rejectedDueToVMCapacity(task.getCloudletId(), CloudSim.clock(), vmType.ordinal());
+				reportReSACOOutcome(task, false);
 			}
 		}
-		else
-		{
-			//SimLogger.printLine("Task #" + task.getCloudletId() + " cannot assign to any VM");
+		else {
 			SimLogger.getInstance().rejectedDueToBandwidth(task.getCloudletId(), CloudSim.clock(), vmType.ordinal(), delayType);
+			reportReSACOOutcome(task, false);
 		}
 	}
 
 	private void submitTaskToVm(Task task, SimSettings.VM_TYPES vmType) {
-		// SimLogger.printLine(
-		// 		CloudSim.clock() + ": Cloudlet#" + task.getCloudletId() + " is submitted to VM#" + task.getVmId());
-
-		// Existing schedule call
 		schedule(getVmsToDatacentersMap().get(task.getVmId()), 0, CloudSimTags.CLOUDLET_SUBMIT, task);
 
-		// Track CPU utilization after the task is assigned
 		SimLogger.getInstance().taskAssigned(task.getCloudletId(),
 				task.getAssociatedDatacenterId(),
 				task.getAssociatedHostId(),
 				task.getAssociatedVmId(),
 				vmType.ordinal());
-
 	}
 
-	private Task createTask(TaskProperty edgeTask){
-		UtilizationModel utilizationModel = new UtilizationModelFull(); /*UtilizationModelStochastic*/
+	private Task createTask(TaskProperty edgeTask) {
+		UtilizationModel utilizationModel = new UtilizationModelFull();
 		UtilizationModel utilizationModelCPU = getCpuUtilizationModel();
 
 		Task task = new Task(edgeTask.getMobileDeviceId(), ++taskIdCounter,
@@ -427,12 +364,11 @@ public class ThreeTierMobileDeviceManager extends MobileDeviceManager {
 				edgeTask.getInputFileSize(), edgeTask.getOutputFileSize(),
 				utilizationModelCPU, utilizationModel, utilizationModel);
 
-		//set the owner of this task
 		task.setUserId(this.getId());
 		task.setTaskType(edgeTask.getTaskType());
 
 		if (utilizationModelCPU instanceof CpuUtilizationModel_Custom) {
-			((CpuUtilizationModel_Custom)utilizationModelCPU).setTask(task);
+			((CpuUtilizationModel_Custom) utilizationModelCPU).setTask(task);
 		}
 
 		return task;
