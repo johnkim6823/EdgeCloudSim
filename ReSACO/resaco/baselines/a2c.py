@@ -15,6 +15,7 @@ import torch.nn as nn
 
 from .. import config
 from ..networks import Actor
+from ..normalize import normalize_state
 
 
 class ValueCritic(nn.Module):
@@ -43,8 +44,8 @@ class A2CAgent:
         self.actor = Actor(state_dim, action_dim, hidden_sizes).to(self.device)
         self.critic = ValueCritic(state_dim, hidden_sizes).to(self.device)
 
-        self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=config.ACTOR_LR)
-        self.critic_optim = torch.optim.Adam(self.critic.parameters(), lr=config.CRITIC_LR)
+        self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=config.A2C_LR)
+        self.critic_optim = torch.optim.Adam(self.critic.parameters(), lr=config.A2C_LR)
 
         self.gamma = config.DISCOUNT_GAMMA
         self.rollout_len = rollout_len
@@ -63,7 +64,7 @@ class A2CAgent:
 
     # ------------------------------------------------------------------
     def select_action(self, state, greedy: bool = False) -> int:
-        state_t = torch.as_tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
+        state_t = torch.as_tensor(normalize_state(state), dtype=torch.float32, device=self.device).unsqueeze(0)
         with torch.no_grad():
             if greedy:
                 action = self.actor.act_greedy(state_t)
@@ -85,13 +86,13 @@ class A2CAgent:
         return states, actions, rewards, dones, state
 
     def _update_from_rollout(self, states, actions, rewards, dones, final_state):
-        states_t = torch.as_tensor(states, dtype=torch.float32, device=self.device)
+        states_t = torch.as_tensor(normalize_state(states), dtype=torch.float32, device=self.device)
         actions_t = torch.as_tensor(actions, dtype=torch.long, device=self.device)
         rewards_t = torch.as_tensor(rewards, dtype=torch.float32, device=self.device)
         dones_t = torch.as_tensor(dones, dtype=torch.float32, device=self.device)
         next_states_t = torch.cat([
             states_t[1:],
-            torch.as_tensor(final_state, dtype=torch.float32, device=self.device).unsqueeze(0),
+            torch.as_tensor(normalize_state(final_state), dtype=torch.float32, device=self.device).unsqueeze(0),
         ], dim=0)
 
         with torch.no_grad():

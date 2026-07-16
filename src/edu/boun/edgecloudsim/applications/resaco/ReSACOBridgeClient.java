@@ -41,6 +41,13 @@ import edu.boun.edgecloudsim.utils.SimLogger;
 public class ReSACOBridgeClient {
 	public static final int NO_ACTION = -1;
 	private static final long RECONNECT_BACKOFF_MS = 5000;
+	// Without this, a hung bridge (not down, just stuck) would block
+	// in.readLine() forever, freezing the whole simulation -- unlike a
+	// refused/reset connection, which ensureConnected() already handles.
+	// SocketTimeoutException extends IOException, so it flows through the
+	// exact same catch blocks (closeQuietly() + NO_ACTION) as any other
+	// connection failure below.
+	private static final int READ_TIMEOUT_MS = 10000;
 
 	private static ReSACOBridgeClient instance;
 
@@ -55,8 +62,16 @@ public class ReSACOBridgeClient {
 	private boolean warnedOnce = false;
 
 	private ReSACOBridgeClient() {
-		host = System.getProperty("resaco.host", "127.0.0.1");
-		port = Integer.parseInt(System.getProperty("resaco.port", "8765"));
+		this(System.getProperty("resaco.host", "127.0.0.1"),
+				Integer.parseInt(System.getProperty("resaco.port", "8765")));
+	}
+
+	/** Package-private: lets tests build an isolated instance (own host/port,
+	 * bypassing the getInstance() singleton) without touching global system
+	 * properties or the shared singleton other tests might also be using. */
+	ReSACOBridgeClient(String host, int port) {
+		this.host = host;
+		this.port = port;
 	}
 
 	public static synchronized ReSACOBridgeClient getInstance() {
@@ -77,6 +92,7 @@ public class ReSACOBridgeClient {
 		try {
 			socket = new Socket(host, port);
 			socket.setTcpNoDelay(true);
+			socket.setSoTimeout(READ_TIMEOUT_MS);
 			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
 			lastFailureTimeMs = -1;

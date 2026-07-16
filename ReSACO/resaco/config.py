@@ -73,3 +73,22 @@ NUM_OUTER_ITERATIONS = 300  # K
 NUM_INNER_SAC_UPDATES = 50  # N
 
 HIDDEN_SIZES = (128, 128)
+
+# ----------------------------------------------------------------------------
+# Baseline-specific hyperparameters (Section V-C). Only ReSACO and the
+# SAC-no-meta-init baseline actually use SAC-Update, so only they use the
+# SAC hyperparameters above; DDPG and A2C/A3C get their own learning rates
+# tuned to what's typical for each algorithm family, instead of blindly
+# reusing SAC's ACTOR_LR/CRITIC_LR.
+# ----------------------------------------------------------------------------
+# DDPG's critic conventionally learns faster than its actor (Lillicrap et
+# al. 2015 uses 1e-3 critic / 1e-4 actor) so the critic can track a
+# deterministic, faster-moving target.
+DDPG_ACTOR_LR = 1e-4
+DDPG_CRITIC_LR = 1e-3
+
+# A2C/A3C are on-policy, single-short-rollout-per-update methods (no replay
+# buffer to average noise out over) -- a single higher shared actor/critic
+# LR is the typical choice for both (used here by both A2C and the A2CAgent
+# A3C's global model gets wrapped into).
+A2C_LR = 7e-4

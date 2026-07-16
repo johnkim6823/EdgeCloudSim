@@ -8,6 +8,18 @@ as five separate `orchestrator_policies` in the *same* real CloudSim
 simulation (scripts/ReSACO), instead of only the toy env used by
 scripts/compare_algorithms.py.
 
+Online-learning persistence: RESACO/SAC_BASELINE/DDPG_BASELINE keep
+adapting theta_adapt from every reported outcome (Algorithm 4). Without
+saving that back to disk, all of it is lost the instant this process
+restarts -- so instead of overwriting the original meta-trained checkpoint
+(theta_star.pt etc, which stays untouched as a stable fallback), each
+adapting agent periodically flushes its live parameters to a separate
+"<checkpoint>_adapted.pt" file (every --autosave-every updates, plus once
+more on a clean shutdown). On the *next* startup, that adapted file is
+preferred over the original if present, so online adaptation actually
+accumulates across restarts instead of resetting every time. A2C/A3C are
+served frozen (see FrozenPolicyAgent) and never have anything to persist.
+
 Protocol (newline-delimited ASCII, one request per line):
 
   ACT <algo> <request_id> <L> <U> <D> <mu_d> <mu_e1> ... <mu_eN> <mu_c> <bwlan> <bman> <bwan>
@@ -37,6 +49,7 @@ client (ReSACOBridgeClient) falls back to a static policy on any I/O error.
 
 import argparse
 import os
+import signal
 import socketserver
 import sys
 import threading
@@ -51,17 +64,28 @@ from resaco.sac import SACAgent
 from resaco.baselines.ddpg import DDPGAgent
 from resaco.baselines.a2c import A2CAgent
 
-# name -> (checkpoint filename, agent factory, wrapper factory)
+# name -> (checkpoint filename, agent factory, wrapper factory, persist)
+# persist=True means the wrapper is a DeploymentAgent that keeps adapting
+# theta_adapt online and needs its own "<checkpoint>_adapted.pt" save slot;
+# False means a FrozenPolicyAgent (A2C/A3C), which never changes at runtime
+# and so has nothing to persist.
 ALGO_REGISTRY = {
-    "RESACO": ("theta_star.pt", SACAgent, DeploymentAgent),
-    "SAC_BASELINE": ("sac_no_meta.pt", SACAgent, DeploymentAgent),
-    "DDPG_BASELINE": ("ddpg.pt", DDPGAgent, DeploymentAgent),
-    "A2C_BASELINE": ("a2c.pt", A2CAgent, FrozenPolicyAgent),
-    "A3C_BASELINE": ("a3c.pt", A2CAgent, FrozenPolicyAgent),
+    "RESACO": ("theta_star.pt", SACAgent, DeploymentAgent, True),
+    "SAC_BASELINE": ("sac_no_meta.pt", SACAgent, DeploymentAgent, True),
+    "DDPG_BASELINE": ("ddpg.pt", DDPGAgent, DeploymentAgent, True),
+    "A2C_BASELINE": ("a2c.pt", A2CAgent, FrozenPolicyAgent, False),
+    "A3C_BASELINE": ("a3c.pt", A2CAgent, FrozenPolicyAgent, False),
 }
 
 _agents = {}  # algo name -> DeploymentAgent | FrozenPolicyAgent
-_lock = threading.Lock()
+# One lock per algo, not one global lock -- each algo's DeploymentAgent/
+# FrozenPolicyAgent only ever touches its own independent SACAgent/
+# DDPGAgent/A2CAgent state (own networks, own replay buffer, own _pending
+# dict), so nothing needs protecting *across* algos. A single shared lock
+# would otherwise serialize every algo's ACT/OUTCOME behind, say, RESACO's
+# training step or its autosave's blocking torch.save() -- a request for
+# SAC_BASELINE has no reason to wait on that.
+_locks = {algo: threading.Lock() for algo in ALGO_REGISTRY}
 
 
 def _parse_floats(tokens):
@@ -104,7 +128,7 @@ class Handler(socketserver.StreamRequestHandler):
             state = _parse_floats(parts[3:])
             if len(state) != config.STATE_DIM:
                 return f"ERROR expected {config.STATE_DIM} state values, got {len(state)}"
-            with _lock:
+            with _locks[algo]:
                 action = agent.select_action(state, request_id=request_id)
             return str(action)
 
@@ -116,7 +140,7 @@ class Handler(socketserver.StreamRequestHandler):
             reward = float(parts[3])
             done = bool(int(parts[4]))
             next_state = _parse_floats(parts[5:])
-            with _lock:
+            with _locks[algo]:
                 result = agent.report_outcome(request_id, reward, next_state, done)
             # result is None only when request_id was never seen by select_action
             # (e.g. the bridge was unreachable/restarted at decision time).
@@ -125,12 +149,18 @@ class Handler(socketserver.StreamRequestHandler):
         if cmd == "SAVE":
             algo = parts[1] if len(parts) > 1 else None
             path = parts[2] if len(parts) > 2 else None
-            agent = _agents.get(algo) if algo else None
-            if agent and path:
-                with _lock:
+            if algo is None:
+                saved = save_all_agents()
+                return f"OK {' '.join(saved)}" if saved else "OK none"
+            agent = _agents.get(algo)
+            if agent is None:
+                return f"ERROR unknown algo {algo}"
+            with _locks[algo]:
+                if path:
                     torch.save(agent.state_dict(), path)
-                return "OK"
-            return "ERROR missing algo/path"
+                elif not agent.save():
+                    return "ERROR no save_path configured for this algo -- pass an explicit path"
+            return "OK"
 
         return f"ERROR unknown command {cmd}"
 
@@ -140,23 +170,66 @@ class ThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True
 
 
-def load_agents(checkpoints_dir: str):
-    loaded, missing = [], []
-    for algo, (filename, agent_cls, wrapper_cls) in ALGO_REGISTRY.items():
-        path = os.path.join(checkpoints_dir, filename)
+def _adapted_path(original_path: str) -> str:
+    root, ext = os.path.splitext(original_path)
+    return f"{root}_adapted{ext}"
+
+
+def save_all_agents():
+    """Flushes every agent's theta_adapt to its configured save_path (a
+    no-op for algos with none, i.e. FrozenPolicyAgent-served A2C/A3C).
+    Used by the SAVE-with-no-args protocol command and on shutdown.
+
+    Each algo's save is guarded by its own lock, not one lock held for the
+    whole loop -- a concurrent ACT/OUTCOME for an algo not currently being
+    saved only ever waits on that algo's own (free) lock, not on however
+    long every other algo's save takes.
+    """
+    saved = []
+    for algo, agent in _agents.items():
+        with _locks[algo]:
+            if agent.save():
+                saved.append(algo)
+    return saved
+
+
+def load_agents(checkpoints_dir: str, autosave_every: int = 50):
+    """Loads each algo's checkpoint, preferring a prior online-adapted
+    checkpoint ("<checkpoint>_adapted.pt") over the original meta-trained
+    one if it exists, so accumulated online learning (Algorithm 4) survives
+    a bridge restart instead of resetting to theta_star every time. Persist-
+    capable agents (DeploymentAgent) are wired with save_path pointing at
+    that adapted file so future adaptation keeps accumulating there; the
+    original checkpoint itself is never overwritten.
+    """
+    loaded, resumed, missing = [], [], []
+    for algo, (filename, agent_cls, wrapper_cls, persist) in ALGO_REGISTRY.items():
+        original_path = os.path.join(checkpoints_dir, filename)
+        adapted_path = _adapted_path(original_path)
         agent = agent_cls()
-        if os.path.exists(path):
-            params = torch.load(path, map_location="cpu")
-            _agents[algo] = wrapper_cls(agent, params)
-            loaded.append(algo)
+
+        wrapper_kwargs = {}
+        if persist:
+            wrapper_kwargs = {"save_path": adapted_path, "autosave_every": autosave_every}
+
+        if persist and os.path.exists(adapted_path):
+            load_path, bucket = adapted_path, resumed
+        elif os.path.exists(original_path):
+            load_path, bucket = original_path, loaded
+        else:
+            load_path, bucket = None, missing
+
+        if load_path:
+            params = torch.load(load_path, map_location="cpu")
+            _agents[algo] = wrapper_cls(agent, params, **wrapper_kwargs)
         else:
             # serve a randomly-initialized (untrained) policy rather than
             # refusing to serve the algo at all -- keeps the simulation
             # runnable even before all baselines are trained, at the cost
             # of that algo's decisions being meaningless until retrained.
-            _agents[algo] = wrapper_cls(agent, None)
-            missing.append(algo)
-    return loaded, missing
+            _agents[algo] = wrapper_cls(agent, None, **wrapper_kwargs)
+        bucket.append(algo)
+    return loaded, resumed, missing
 
 
 def main():
@@ -165,9 +238,15 @@ def main():
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "checkpoints"))
     parser.add_argument("--host", type=str, default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--autosave-every", type=int, default=50,
+                         help="Flush online-adapted checkpoints to disk every N successful "
+                              "updates (RESACO/SAC_BASELINE/DDPG_BASELINE only). Also saved "
+                              "once more on a clean shutdown.")
     args = parser.parse_args()
 
-    loaded, missing = load_agents(args.checkpoints_dir)
+    loaded, resumed, missing = load_agents(args.checkpoints_dir, autosave_every=args.autosave_every)
+    if resumed:
+        print(f"Resumed online-adapted checkpoints for: {', '.join(resumed)}")
     if loaded:
         print(f"Loaded trained checkpoints for: {', '.join(loaded)}")
     if missing:
@@ -175,12 +254,25 @@ def main():
               f"-- serving randomly-initialized (untrained) policies for them. "
               f"Run train_meta.py / train_baselines.py first.")
 
+    # SIGTERM has no default Python handler (unlike SIGINT/Ctrl+C, which
+    # already raises KeyboardInterrupt) -- without this, a `kill`/service-stop
+    # would drop straight through and skip the shutdown save below.
+    def _raise_keyboard_interrupt(signum, frame):
+        raise KeyboardInterrupt
+
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, _raise_keyboard_interrupt)
+
     server = ThreadingTCPServer((args.host, args.port), Handler)
     print(f"ReSACO inference/online-learning bridge listening on {args.host}:{args.port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
+    finally:
+        print("Shutting down -- saving all online-adapted checkpoints...")
+        saved = save_all_agents()
+        print(f"Saved: {', '.join(saved)}" if saved else "Nothing to save.")
 
 
 if __name__ == "__main__":

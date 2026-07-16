@@ -22,6 +22,7 @@ import torch.nn.functional as F
 
 from .. import config
 from ..networks import Actor
+from ..normalize import normalize_state
 from ..replay_buffer import ReplayBuffer
 
 
@@ -55,8 +56,8 @@ class DDPGAgent:
         self.target_actor = copy.deepcopy(self.actor)
         self.target_critic = copy.deepcopy(self.critic)
 
-        self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=config.ACTOR_LR)
-        self.critic_optim = torch.optim.Adam(self.critic.parameters(), lr=config.CRITIC_LR)
+        self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=config.DDPG_ACTOR_LR)
+        self.critic_optim = torch.optim.Adam(self.critic.parameters(), lr=config.DDPG_CRITIC_LR)
 
         self.gamma = config.DISCOUNT_GAMMA
         self.rho = config.TARGET_SOFT_UPDATE_RHO
@@ -83,7 +84,7 @@ class DDPGAgent:
     def select_action(self, state, greedy: bool = False) -> int:
         if not greedy and random.random() < self.epsilon:
             return random.randrange(self.action_dim)
-        state_t = torch.as_tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
+        state_t = torch.as_tensor(normalize_state(state), dtype=torch.float32, device=self.device).unsqueeze(0)
         with torch.no_grad():
             action = self.actor.act_greedy(state_t)
         return int(action.item())
@@ -97,10 +98,10 @@ class DDPGAgent:
             return None
 
         state, action, reward, next_state, done = self.replay_buffer.sample(batch_size)
-        state = torch.as_tensor(state, dtype=torch.float32, device=self.device)
+        state = torch.as_tensor(normalize_state(state), dtype=torch.float32, device=self.device)
         action = torch.as_tensor(action, dtype=torch.long, device=self.device)
         reward = torch.as_tensor(reward, dtype=torch.float32, device=self.device)
-        next_state = torch.as_tensor(next_state, dtype=torch.float32, device=self.device)
+        next_state = torch.as_tensor(normalize_state(next_state), dtype=torch.float32, device=self.device)
         done = torch.as_tensor(done, dtype=torch.float32, device=self.device)
 
         # --- critic update ---

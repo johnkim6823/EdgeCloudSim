@@ -163,9 +163,11 @@ size, device/edge/cloud utilization, network bandwidth) to whichever
 algorithm the active policy names, over TCP, and offloads to whatever tier
 (device / edge / cloud) it returns; the task's real outcome is reported
 back afterwards. If the bridge or the requested algorithm's checkpoint is
-unavailable, it falls back to a static EDGE_PRIORITY-style heuristic
-instead of crashing -- so the simulation is always safe to run even if
-you forgot to start the bridge, it just won't be using RL for that run.
+unavailable -- or the bridge is up but hung (a 10s read timeout guards
+against this too) -- it falls back to a static EDGE_PRIORITY-style
+heuristic instead of crashing -- so the simulation is always safe to run
+even if you forgot to start the bridge, it just won't be using RL for
+that run.
 
 ### 1. Train (once) or reuse existing checkpoints
 
@@ -189,6 +191,16 @@ Missing checkpoints are served as untrained (random) policies with a
 warning rather than refused, so it's fine to start this before every
 baseline is trained -- just re-run `train_baselines.py` and restart the
 bridge later to pick up the real weights.
+
+RESACO/SAC_BASELINE/DDPG_BASELINE keep adapting online from every task's
+real outcome (Algorithm 4) and periodically save that progress to
+`checkpoints/<name>_adapted.pt` (default: every 50 updates, tunable via
+`--autosave-every`, plus once more on a clean Ctrl+C shutdown) without
+ever overwriting the original trained checkpoint. The next time the
+bridge starts, it resumes from that adapted file automatically, so a long
+EdgeCloudSim run's online learning survives a bridge restart. See
+[ReSACO/README.md](ReSACO/README.md)'s "Online-learning persistence"
+section for the full protocol and how to reset it.
 
 ### 3. Compile and run EdgeCloudSim
 
@@ -222,6 +234,26 @@ training step). Budget accordingly for the full device-count sweep.
 Results land under `scripts/ReSACO/output/...` in the same per-policy
 log/CSV format as `three_tier`.
 
+### Java tests
+
+```
+./test.sh          # from the EdgeCloudSim/ repo root
+```
+
+Compiles `src/` and `test/`, then runs the JUnit 5 suite via
+`lib/junit-platform-console-standalone-*.jar` (no Maven/Gradle in this
+project, so this is a plain `javac` + JUnit console launcher script,
+mirroring `scripts/ReSACO/compile.sh`'s style). Currently covers
+`ReSACOBridgeClient` (the TCP client side of the ReSACO bridge protocol)
+against a real local `ServerSocket` standing in for the Python bridge --
+connection failure, valid/error responses, wire format, and the 10s read
+timeout (that last one takes ~10s to run, by design -- it's asserting the
+timeout actually fires rather than mocking it away). ReSACO's own Python
+side has its own, separate suite (`ReSACO/tests/`, see
+[ReSACO/README.md](ReSACO/README.md)); `test/` here only covers this
+repo's Java code, and isn't wired into CI yet (Python's is, via
+`.github/workflows/tests.yml`).
+
 # evaluate.py
 
 ## Overview
@@ -240,6 +272,10 @@ runtime from whichever policy names actually appear in the selected run's
 data (natural-sorted) -- nothing is hardcoded per application, so the same
 script works unmodified for both, and for any new application added later.
 
+Requires `scripts/requirements.txt` (`pip install -r scripts/requirements.txt`
+-- numpy/matplotlib/pandas/natsort/scienceplots; no dedicated venv, unlike
+ReSACO, since this script never needs torch).
+
 Run it with no arguments for an interactive menu, or pass the menu number
 or application name to skip straight to it:
 ```
@@ -252,15 +288,50 @@ python scripts/evaluate.py 1               # same as "ReSACO" -- menu number als
 실행할 평가 방식을 선택하세요:
 1. ReSACO
 2. three_tier
+3. ReSACO_convergence
+4. ReSACO_compare_algorithms
 입력 (번호):
 ```
 
-The menu is a plain `EVALUATION_MENU = {"1": {...}, "2": {...}}` dict at
-the bottom of the file mapping a number to a display name and a handler
-function -- adding a third evaluation option later (not necessarily just
-another app's `output/` folder; could be a completely different flow, e.g.
-wiring up `ReSACO/scripts/plot_convergence.py`) means adding one more
-entry there, no branching logic elsewhere needs to change.
+Options 3/4 run `ReSACO/scripts/plot_convergence.py` /
+`compare_algorithms.py` directly (through ReSACO's own venv, since those
+need torch) and copy their output artifacts
+(`convergence.png`/`.csv`, `comparison.csv`) into this run's
+`evaluation_result/` folder alongside the log-based evaluations from
+options 1/2 -- see [ReSACO/README.md](ReSACO/README.md) for what those two
+scripts actually do.
+
+### Batch/CI runs: `--auto`
+
+By default every step below (which simulation date, which ITEs/policies,
+manual vs. automatic plotting) is an interactive prompt. Add `--auto` to
+skip all of them and run unattended -- the latest simulation date, every
+ITE, every policy, and automatic plotting:
+```
+python scripts/evaluate.py ReSACO --auto
+```
+`--auto` requires an explicit choice argument too (there's no sensible
+default for *which* application/analysis to evaluate) -- `python
+scripts/evaluate.py --auto` alone is a usage error, not "evaluate
+everything".
+
+The menu is a plain `EVALUATION_MENU = {"1": {...}, "2": {...}, ...}` dict
+at the bottom of the file mapping a number to a display name and a handler
+function `(results_dir, auto=False) -> None` -- adding another evaluation
+option later means adding one more entry there, no branching logic
+elsewhere needs to change.
+
+### Tests
+
+```
+cd scripts && pip install -r requirements.txt pytest && pytest tests/
+```
+Covers the pure logic behind `--auto` (every selector returns "ALL"/latest
+without prompting, `--auto` without a choice errors, the menu dict shape).
+Doesn't cover `run_app_evaluation`'s file-processing path end-to-end (that
+needs real `output/<date>/default_config/` simulation results to run
+against); ReSACO's own test suite (`ReSACO/tests/`, see its README) covers
+the RL package itself.
 
 All results (CSVs, plots) are saved under
 **`scripts/evaluation_result/<name>_<YYYYMMDD>/`** -- `<name>` is the

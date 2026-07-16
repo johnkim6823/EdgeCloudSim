@@ -15,6 +15,9 @@ Desktop.ini
 # bin folder
 bin
 
+# Java test compilation output (test.sh)
+test-bin
+
 # simulation output folder
 sim_results
 
@@ -33,6 +36,9 @@ evaluation
 # Python bytecode cache (scripts/evaluate.py, index_mapping.py, ...)
 __pycache__/
 *.pyc
+
+# pytest cache (scripts/tests/, ReSACO/tests/)
+.pytest_cache/
 
 #CSV files
 *.csv

@@ -31,6 +31,7 @@ from .. import config
 from ..env import MECOffloadEnv
 from .a2c import A2CAgent, ValueCritic
 from ..networks import Actor
+from ..normalize import normalize_state
 
 
 class A3CTrainer:
@@ -47,8 +48,8 @@ class A3CTrainer:
         # the global model workers pull from / push gradients to
         self.global_actor = Actor(state_dim, action_dim, hidden_sizes)
         self.global_critic = ValueCritic(state_dim, hidden_sizes)
-        self.actor_optim = torch.optim.Adam(self.global_actor.parameters(), lr=config.ACTOR_LR)
-        self.critic_optim = torch.optim.Adam(self.global_critic.parameters(), lr=config.CRITIC_LR)
+        self.actor_optim = torch.optim.Adam(self.global_actor.parameters(), lr=config.A2C_LR)
+        self.critic_optim = torch.optim.Adam(self.global_critic.parameters(), lr=config.A2C_LR)
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------
@@ -68,7 +69,7 @@ class A3CTrainer:
 
             states, actions, rewards, dones = [], [], [], []
             for _ in range(self.rollout_len):
-                state_t = torch.as_tensor(state, dtype=torch.float32).unsqueeze(0)
+                state_t = torch.as_tensor(normalize_state(state), dtype=torch.float32).unsqueeze(0)
                 with torch.no_grad():
                     action, _, _ = local_actor.sample(state_t)
                 action = int(action.item())
@@ -79,12 +80,12 @@ class A3CTrainer:
                 dones.append(done)
                 state = next_state
 
-            states_t = torch.as_tensor(states, dtype=torch.float32)
+            states_t = torch.as_tensor(normalize_state(states), dtype=torch.float32)
             actions_t = torch.as_tensor(actions, dtype=torch.long)
             rewards_t = torch.as_tensor(rewards, dtype=torch.float32)
             dones_t = torch.as_tensor(dones, dtype=torch.float32)
             next_states_t = torch.cat([
-                states_t[1:], torch.as_tensor(state, dtype=torch.float32).unsqueeze(0)
+                states_t[1:], torch.as_tensor(normalize_state(state), dtype=torch.float32).unsqueeze(0)
             ], dim=0)
 
             with torch.no_grad():

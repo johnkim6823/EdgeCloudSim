@@ -8,6 +8,8 @@ These wrap the object the Java-side inference bridge
 algorithm (ReSACO, SAC baseline, DDPG baseline, A2C baseline, A3C baseline).
 """
 
+import torch
+
 from . import config
 
 
@@ -18,13 +20,25 @@ class DeploymentAgent:
     with online learning (Algorithm 4): copy trained params in, then keep
     adapting from real reported outcomes via an incremental update per
     transition.
+
+    Without `save_path`, theta_adapt only ever lives in memory -- every bit
+    of online adaptation is lost the moment the bridge process restarts,
+    which defeats the point of Algorithm 4 being "online" at all. Passing
+    `save_path` (+ `autosave_every`) makes report_outcome() persist
+    theta_adapt back to disk every N successful updates, and `save()` can
+    also be called directly (e.g. from a shutdown handler) to flush
+    whatever's been learned so far.
     """
 
-    def __init__(self, agent, params: dict = None):
+    def __init__(self, agent, params: dict = None, save_path: str = None,
+                 autosave_every: int = 50):
         self.agent = agent
         if params is not None:
             self.agent.load_params(params)  # theta* -> theta_adapt (line 1)
         self._pending = {}  # correlate an in-flight decision with its later outcome
+        self.save_path = save_path
+        self.autosave_every = autosave_every
+        self._updates_since_save = 0
 
     def select_action(self, state, request_id, greedy: bool = False) -> int:
         action = self.agent.select_action(state, greedy=greedy)
@@ -35,7 +49,10 @@ class DeploymentAgent:
                         min_buffer_before_update: int = config.BATCH_SIZE):
         """Called once a task's real outcome (success/failure, service time)
         is known. Stores the transition and triggers an incremental
-        SAC-Update-style step, i.e. the online part of Algorithm 4.
+        SAC-Update-style step, i.e. the online part of Algorithm 4. Every
+        `autosave_every` updates (if `save_path` was given), the adapted
+        parameters are flushed to disk so a crash or restart only loses at
+        most that many updates' worth of progress instead of all of it.
 
         Returns None if request_id is unknown (nothing to do -- e.g. this
         decision was never actually made through select_action, or its
@@ -52,7 +69,19 @@ class DeploymentAgent:
         update_result = None
         if len(self.agent.replay_buffer) >= min_buffer_before_update:
             update_result = self.agent.update()
+            self._updates_since_save += 1
+            if self.save_path and self.autosave_every and self._updates_since_save >= self.autosave_every:
+                self.save()
         return {"recorded": True, "update": update_result}
+
+    def save(self) -> bool:
+        """Flushes theta_adapt to `self.save_path`. Returns False (no-op)
+        if no save_path was configured."""
+        if not self.save_path:
+            return False
+        torch.save(self.agent.get_params(), self.save_path)
+        self._updates_since_save = 0
+        return True
 
     def state_dict(self):
         return self.agent.get_params()
@@ -84,6 +113,12 @@ class FrozenPolicyAgent:
             return None
         self._seen.discard(request_id)
         return {"recorded": False, "update": None}
+
+    def save(self) -> bool:
+        """Never anything to persist -- the served policy never changes
+        after training. Present only so callers can treat every agent
+        uniformly (e.g. a shutdown handler calling .save() on all of them)."""
+        return False
 
     def state_dict(self):
         return self.agent.get_params()

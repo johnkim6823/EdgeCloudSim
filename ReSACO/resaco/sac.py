@@ -13,6 +13,7 @@ import torch.nn.functional as F
 
 from . import config
 from .networks import Actor, Critic
+from .normalize import normalize_state
 from .replay_buffer import ReplayBuffer
 
 
@@ -61,7 +62,7 @@ class SACAgent:
 
     # ------------------------------------------------------------------
     def select_action(self, state, greedy: bool = False) -> int:
-        state_t = torch.as_tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
+        state_t = torch.as_tensor(normalize_state(state), dtype=torch.float32, device=self.device).unsqueeze(0)
         with torch.no_grad():
             if greedy:
                 action = self.actor.act_greedy(state_t)
@@ -77,10 +78,10 @@ class SACAgent:
             return None
 
         state, action, reward, next_state, done = self.replay_buffer.sample(batch_size)
-        state = torch.as_tensor(state, dtype=torch.float32, device=self.device)
+        state = torch.as_tensor(normalize_state(state), dtype=torch.float32, device=self.device)
         action = torch.as_tensor(action, dtype=torch.long, device=self.device)
         reward = torch.as_tensor(reward, dtype=torch.float32, device=self.device)
-        next_state = torch.as_tensor(next_state, dtype=torch.float32, device=self.device)
+        next_state = torch.as_tensor(normalize_state(next_state), dtype=torch.float32, device=self.device)
         done = torch.as_tensor(done, dtype=torch.float32, device=self.device)
 
         critic_loss = self._update_critic(state, action, reward, next_state, done)
@@ -132,17 +133,38 @@ class SACAgent:
                 target_param.mul_(self.rho).add_(param, alpha=1 - self.rho)
 
     # ------------------------------------------------------------------
-    def sac_update_loop(self, env, num_transitions: int, greedy_action: bool = False):
+    def sac_update_loop(self, env, num_transitions: int, greedy_action: bool = False,
+                         batch_size: int = config.BATCH_SIZE):
         """Runs the full SAC-Update transition-collection loop (Algorithm 3):
         interact with `env` for `num_transitions` steps, storing transitions
-        and performing one gradient update per step."""
+        and performing one gradient update per step.
+
+        `num_transitions` is meant to be "N inner SAC-Update iterations"
+        (Algorithm 2's N) -- i.e. N real gradient steps. update() is a no-op
+        until the replay buffer holds at least `batch_size` transitions, so
+        a fresh agent (buffer starting at 0, as the Reptile Inner Loop
+        creates every outer iteration) needs to collect `batch_size`
+        transitions before the very first update can fire. Without this
+        warm-up, a small N (e.g. N=50 < batch_size=64) would mean update()
+        never fires at all during the whole call -- theta_k would come back
+        byte-for-byte identical to theta, silently turning meta-training
+        into a no-op. So the warm-up transitions here are collected but not
+        counted against N, guaranteeing all N counted steps below actually
+        perform a gradient update.
+        """
         state = env.reset()
+        while len(self.replay_buffer) < batch_size:
+            action = self.select_action(state, greedy=greedy_action)
+            next_state, reward, done, info = env.step(action)
+            self.replay_buffer.push(state, action, reward, next_state, float(done))
+            state = next_state
+
         stats = []
         for _ in range(num_transitions):
             action = self.select_action(state, greedy=greedy_action)
             next_state, reward, done, info = env.step(action)
             self.replay_buffer.push(state, action, reward, next_state, float(done))
-            result = self.update()
+            result = self.update(batch_size=batch_size)
             if result is not None:
                 stats.append(result)
             state = next_state

@@ -137,25 +137,39 @@ def main():
         writer.writerows(rows)
     print(f"\nSaved comparison table -> {args.out_csv}")
 
+    def pct_improve(base, resaco):
+        """Relative percent improvement -- fine for service_time, a positive
+        duration essentially never at/near zero."""
+        if base in (0, None) or base != base:
+            return float("nan")
+        return (base - resaco) / base * 100
+
+    def pct_point_diff(base, resaco):
+        """Absolute percentage-point difference (base - resaco), for
+        network_fail_rate/vm_fail_rate -- both already bounded in [0, 100].
+        A relative percent-improvement formula blows up for these: it's NaN
+        whenever a baseline's rate is exactly 0 (common here -- network
+        failures never happen in this env) and explodes to absurd values
+        (e.g. -13150%) whenever the baseline is merely close to 0."""
+        if base is None or base != base or resaco is None or resaco != resaco:
+            return float("nan")
+        return base - resaco
+
     # Table III style: ReSACO's improvement over each baseline at the
     # highest device count.
     if "ReSACO" in agents:
         last = {r["algorithm"]: r for r in rows if r["devices"] == DEVICE_COUNTS[-1]}
         if "ReSACO" in last:
             print(f"\nReSACO improvement at {DEVICE_COUNTS[-1]} devices (Table III style):")
-            print(f"{'Algorithm':10s} {'Service Time':>14s} {'Network Fail':>14s} {'VM Fail':>10s}")
+            print(f"{'Algorithm':10s} {'Service Time':>14s} {'Net Fail (pp)':>14s} {'VM Fail (pp)':>13s}")
             resaco_row = last["ReSACO"]
             for name, row in last.items():
                 if name == "ReSACO":
                     continue
-                def pct_improve(base, resaco):
-                    if base in (0, None) or base != base:  # NaN check
-                        return float("nan")
-                    return (base - resaco) / base * 100
                 st = pct_improve(row["avg_service_time"], resaco_row["avg_service_time"])
-                nf = pct_improve(row["network_fail_rate"], resaco_row["network_fail_rate"])
-                vf = pct_improve(row["vm_fail_rate"], resaco_row["vm_fail_rate"])
-                print(f"{name:10s} {st:13.1f}% {nf:13.1f}% {vf:9.1f}%")
+                nf = pct_point_diff(row["network_fail_rate"], resaco_row["network_fail_rate"])
+                vf = pct_point_diff(row["vm_fail_rate"], resaco_row["vm_fail_rate"])
+                print(f"{name:10s} {st:13.1f}% {nf:13.1f}pp {vf:12.1f}pp")
 
 
 if __name__ == "__main__":

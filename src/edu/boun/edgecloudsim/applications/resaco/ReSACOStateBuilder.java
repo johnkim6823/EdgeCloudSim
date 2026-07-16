@@ -79,9 +79,19 @@ public class ReSACOStateBuilder {
 			state[i++] = edgeUtilization;
 		}
 		state[i++] = cloudUtilization;
-		state[i++] = settings.getWlanBandwidth();
-		state[i++] = settings.getManBandwidth();
-		state[i++] = settings.getWanBandwidth();
+		// SimSettings.getXxxBandwidth()'s JavaDoc claims "Mbps unit" but that's
+		// stale -- the underlying BANDWITH_XXX fields are the config file's Mbps
+		// value pre-multiplied by 1000 for internal Kbps-based delay math (see
+		// SimSettings.java's loadSimulationParameters() and
+		// ThreeTierNetworkModel.calculateMM1()'s explicit /*Kbps*/ comment).
+		// resaco/config.py's *_BANDWIDTH_MBPS constants (and everything trained
+		// against them, including resaco/normalize.py's fixed scale factors) are
+		// in Mbps, so without the /1000.0 here every b_wlan/b_man/b_wan value
+		// reaching the trained policy would be ~1000x anything it ever saw
+		// during training.
+		state[i++] = settings.getWlanBandwidth() / 1000.0;
+		state[i++] = settings.getManBandwidth() / 1000.0;
+		state[i++] = settings.getWanBandwidth() / 1000.0;
 		return state;
 	}
 }

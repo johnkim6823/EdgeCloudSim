@@ -1,4 +1,6 @@
+import argparse
 import os
+import subprocess
 import tarfile
 import shutil
 import sys
@@ -72,7 +74,12 @@ def get_available_date_folders(base_path):
         sys.exit(1)
 
 
-def select_date_folder(date_folders):
+def select_date_folder(date_folders, auto=False):
+    if auto:
+        latest = date_folders[-1]
+        print(f"[--auto] Using latest date folder: {latest}")
+        return latest
+
     print("\nAvailable Date Folders:")
     print("-" * 50)
     print("0. (Auto) Use Latest Date")
@@ -334,12 +341,16 @@ def print_two_column_menu(labeled_options):
             print(labeled_options[idx])
 
 
-def select_option(options, option_name):
+def select_option(options, option_name, auto=False):
     """
     Displays options in two columns, returns a single selected item
-    or 'ALL' if the user chooses '0'.
+    or 'ALL' if the user chooses '0'. With auto=True, skips the prompt
+    entirely and returns 'ALL' (matching what choosing '0' would do).
     """
     options = natsorted(options)
+    if auto:
+        print(f"[--auto] Processing all {option_name.lower()}s")
+        return 'ALL'
     print(f"0. Process all {option_name.lower()}s")
     print_two_column_menu([f"{idx + 1}. {opt}" for idx, opt in enumerate(options)])
     while True:
@@ -688,14 +699,15 @@ def format_axis_label(label, axis="x"):
 ###############################################################################
 # 10. Main
 ###############################################################################
-def select_ite_and_policy(log_data):
+def select_ite_and_policy(log_data, auto=False):
     """Prompts for ITE then Policy (each 'ALL' or a single pick), returning
     (selected_ites, ite_part, selected_policies, policy_part) where the
-    *_part strings are used as CSV filename fragments."""
+    *_part strings are used as CSV filename fragments. With auto=True,
+    both default to 'ALL' without prompting."""
     ite_keys = natsorted(list(log_data.keys()))
     print("\n" + "-" * 50 + "\n")
     print("Available ITEs:")
-    ite_selection = select_option(ite_keys, "ITE")
+    ite_selection = select_option(ite_keys, "ITE", auto=auto)
 
     if ite_selection == 'ALL':
         selected_ites = ite_keys
@@ -707,7 +719,7 @@ def select_ite_and_policy(log_data):
     policy_keys = natsorted({policy for ite in selected_ites for policy in log_data.get(ite, {}).keys()})
     print("\n" + "-" * 50 + "\n")
     print("Available Policies:")
-    policy_selection = select_option(policy_keys, "Policies")
+    policy_selection = select_option(policy_keys, "Policies", auto=auto)
 
     if policy_selection == 'ALL':
         selected_policies = policy_keys
@@ -778,8 +790,12 @@ def save_csvs(df, sorted_df, mean_df, logs_dir, input_date, ite_part, policy_par
     print(f"Mean data saved to {file_mean}")
 
 
-def prompt_and_plot(mean_df, input_date, graph_dir):
+def prompt_and_plot(mean_df, input_date, graph_dir, auto=False):
     print("-" * 50)
+    if auto:
+        print("[--auto] Plotting automatically")
+        plot_graph(mean_df, input_date, graph_dir, auto=True)
+        return
     while True:
         plot_choice = input("Do you want to plot graphs automatically or manually? (a/m): ").lower()
         if plot_choice == 'a':
@@ -793,7 +809,7 @@ def prompt_and_plot(mean_df, input_date, graph_dir):
             print("Invalid choice. Please enter 'a' for automatic or 'm' for manual.")
 
 
-def run_app_evaluation(app_dir_name, results_dir):
+def run_app_evaluation(app_dir_name, results_dir, auto=False):
     """Evaluates one EdgeCloudSim application's simulation output
     (scripts/<app_dir_name>/output/<sim_date>/...), saving everything --
     CSVs and plots -- into `results_dir`
@@ -801,12 +817,16 @@ def run_app_evaluation(app_dir_name, results_dir):
     main()). This is the handler behind the ReSACO and three_tier
     EVALUATION_MENU entries; see the comment above EVALUATION_MENU for how
     to register a different kind of evaluation.
+
+    With auto=True, every interactive prompt below is skipped: the latest
+    simulation date, all ITEs, all policies, and automatic plotting --
+    so this can run unattended in a batch/CI job.
     """
     app_dir = os.path.join(SCRIPT_DIR, app_dir_name)
     base_path = os.path.join(app_dir, "output")
 
     date_folders = get_available_date_folders(base_path)
-    input_date = select_date_folder(date_folders)
+    input_date = select_date_folder(date_folders, auto=auto)
     print("\n" + "-" * 20)
     print(f"Application: {app_dir_name}")
     print(f"Selected simulation date: {input_date}")
@@ -818,7 +838,7 @@ def run_app_evaluation(app_dir_name, results_dir):
         sys.exit(1)  # Exit if processing fails
     log_data, logs_dir, graph_dir = result
 
-    selected_ites, ite_part, selected_policies, policy_part = select_ite_and_policy(log_data)
+    selected_ites, ite_part, selected_policies, policy_part = select_ite_and_policy(log_data, auto=auto)
 
     # ----------------------------------------------------------------
     # Category selection is forced to ALL_APPS_GENERIC, so we skip
@@ -851,30 +871,122 @@ def run_app_evaluation(app_dir_name, results_dir):
     df = build_dataframe(log_data, selected_ites, selected_policies, selected_categories)
     sorted_df, mean_df = compute_sorted_and_mean(df)
     save_csvs(df, sorted_df, mean_df, logs_dir, input_date, ite_part, policy_part, category_part)
-    prompt_and_plot(mean_df, input_date, graph_dir)
+    prompt_and_plot(mean_df, input_date, graph_dir, auto=auto)
+
+
+###############################################################################
+# 11. ReSACO's own standalone analysis scripts (convergence / algorithm
+#     comparison) -- these live under ReSACO/scripts/, need ReSACO's own
+#     venv (they import torch, which this scripts/ environment doesn't
+#     have), and are already fully non-interactive on their own. This just
+#     runs them through the right interpreter and copies their output
+#     artifacts into results_dir so every EVALUATION_MENU option's output
+#     lands under scripts/evaluation_result/ in the same place.
+###############################################################################
+RESACO_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), "ReSACO")
+
+
+def _resaco_venv_python():
+    """Locates ReSACO's own venv interpreter (Windows or Linux/Mac layout),
+    not this scripts/ environment's -- ReSACO's scripts need torch."""
+    for candidate in (
+        os.path.join(RESACO_DIR, "venv", "Scripts", "python.exe"),
+        os.path.join(RESACO_DIR, "venv", "bin", "python"),
+    ):
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
+def run_resaco_script(script_name, results_dir, auto=False, artifacts=()):
+    """Runs `ReSACO/scripts/<script_name>` via ReSACO's own venv, then
+    copies each of `artifacts` (paths relative to ReSACO/) into
+    results_dir. `auto` is accepted only for a uniform handler signature
+    with run_app_evaluation -- both plot_convergence.py and
+    compare_algorithms.py are already fully non-interactive, so it has no
+    effect here.
+    """
+    script_path = os.path.join(RESACO_DIR, "scripts", script_name)
+    venv_python = _resaco_venv_python()
+
+    if venv_python is None:
+        print(f"Error: no ReSACO venv found under {RESACO_DIR}/venv. "
+              f"Run `python -m venv venv` and `venv/bin/pip install -r requirements.txt` "
+              f"(or venv\\Scripts\\pip on Windows) inside {RESACO_DIR} first.")
+        sys.exit(1)
+    if not os.path.exists(script_path):
+        print(f"Error: {script_path} not found.")
+        sys.exit(1)
+
+    print(f"\n--- Running ReSACO/scripts/{script_name} (via {venv_python}) ---\n")
+    try:
+        subprocess.run([venv_python, script_path], cwd=RESACO_DIR, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error: {script_name} exited with code {e.returncode}.")
+        sys.exit(1)
+
+    copied = []
+    for rel_path in artifacts:
+        src = os.path.join(RESACO_DIR, rel_path)
+        if os.path.exists(src):
+            dst = os.path.join(results_dir, os.path.basename(src))
+            shutil.copy(src, dst)
+            copied.append(dst)
+    if copied:
+        print(f"\nCopied artifacts to {results_dir}:")
+        for path in copied:
+            print(f"  {path}")
 
 
 # Built here (rather than at the top of the file) since each handler needs
 # the function it wraps to already exist -- a dict literal's values are
 # evaluated immediately, unlike a function body. To add a new evaluation
 # option, add one more "N": {"name": ..., "handler": ...} entry; the
-# handler just needs to accept a single `results_dir` argument.
+# handler just needs to accept (results_dir, auto=False).
 EVALUATION_MENU = {
     "1": {"name": "ReSACO", "handler": partial(run_app_evaluation, "ReSACO")},
     "2": {"name": "three_tier", "handler": partial(run_app_evaluation, "three_tier")},
+    "3": {"name": "ReSACO_convergence", "handler": partial(
+        run_resaco_script, "plot_convergence.py",
+        artifacts=("checkpoints/convergence.png", "checkpoints/convergence.csv"),
+    )},
+    "4": {"name": "ReSACO_compare_algorithms", "handler": partial(
+        run_resaco_script, "compare_algorithms.py",
+        artifacts=("checkpoints/comparison.csv",),
+    )},
 }
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Evaluate EdgeCloudSim simulation output. Interactive by default.")
+    parser.add_argument("choice", nargs="?", default=None,
+                         help="Evaluation menu number or name (e.g. '1' or 'ReSACO'). "
+                              "Skips the top-level menu prompt if given.")
+    parser.add_argument("--auto", action="store_true",
+                         help="Skip every interactive prompt (date, ITE, policy, plot mode): "
+                              "use the latest date, all ITEs, all policies, and automatic "
+                              "plotting -- for batch/CI runs. Requires `choice` to also be "
+                              "given, since there's no sensible default for *which* "
+                              "application/analysis to run.")
+    args = parser.parse_args()
+    if args.auto and args.choice is None:
+        parser.error("--auto requires a choice argument too, e.g. "
+                      "`python evaluate.py ReSACO --auto` (there's no default for "
+                      "which application/analysis to run).")
+    return args
+
+
 def main():
-    cli_arg = sys.argv[1] if len(sys.argv) > 1 else None
-    choice_key = prompt_for_evaluation_choice(cli_arg)
+    args = parse_args()
+    choice_key = prompt_for_evaluation_choice(args.choice)
     entry = EVALUATION_MENU[choice_key]
 
     today = datetime.now().strftime("%Y%m%d")
     results_dir = os.path.join(SCRIPT_DIR, EVALUATION_RESULT_DIRNAME, f"{entry['name']}_{today}")
     os.makedirs(results_dir, exist_ok=True)
 
-    entry["handler"](results_dir)
+    entry["handler"](results_dir, auto=args.auto)
 
 
 if __name__ == "__main__":
