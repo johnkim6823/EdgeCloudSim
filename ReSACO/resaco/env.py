@@ -85,12 +85,17 @@ class MECOffloadEnv:
 
     # ------------------------------------------------------------------
     def _sample_task(self) -> Task:
-        s = self.scenario
-        length = self.rng.uniform(*_jitter_range(s.task_length, 0.3))
-        upload = self.rng.uniform(*_jitter_range(s.data_upload, 0.3))
-        download = self.rng.uniform(*_jitter_range(s.data_download, 0.3))
+        # Exponentially distributed around this scenario's app_profile
+        # means, matching EdgeCloudSim's IdleActiveLoadGenerator exactly
+        # (ExponentialDistribution(mean) for input size / output size /
+        # task length) -- not a bounded uniform jitter, which understates
+        # the real long-tailed variance real task sizes have.
+        p = self.scenario.app_profile
+        length = self.rng.expovariate(1.0 / max(p.task_length, 1.0))
+        upload = self.rng.expovariate(1.0 / max(p.data_upload, 1.0))
+        download = self.rng.expovariate(1.0 / max(p.data_download, 1.0))
         return Task(length=max(length, 1.0), data_upload=max(upload, 1.0),
-                    data_download=max(download, 1.0), required_core=s.required_core)
+                    data_download=max(download, 1.0), required_core=p.required_core)
 
     def _bandwidth(self) -> tuple:
         """Sample current available bandwidth (Mbps), degraded by load."""
@@ -140,24 +145,24 @@ class MECOffloadEnv:
         (next_state, reward, done, info)."""
         self._release_expired()
         task = self.current_task
-        s = self.scenario
+        p = self.scenario.app_profile
         wlan, man, wan = self._current_bw
 
         if action == 0:
             layer, index = "mobile", 0
-            mu_required = s.vm_utilization_on_mobile
+            mu_required = p.vm_utilization_on_mobile
             mu_current = self.mu_mobile
             mips = config.MOBILE_VM_MIPS
             delay = 0.0  # local execution: no data ever leaves the device
         elif 1 <= action <= self.n_edge:
             layer, index = "edge", action - 1
-            mu_required = s.vm_utilization_on_edge
+            mu_required = p.vm_utilization_on_edge
             mu_current = self.mu_edge[index]
             mips = config.EDGE_VM_MIPS
             delay = self._transfer_delay(task, wlan) + self._transfer_delay(task, man) * 0.1
         else:
             layer, index = "cloud", 0
-            mu_required = s.vm_utilization_on_cloud
+            mu_required = p.vm_utilization_on_cloud
             mu_current = self.mu_cloud
             mips = config.CLOUD_VM_MIPS
             delay = self._transfer_delay(task, wlan) + self._transfer_delay(task, wan)
@@ -177,7 +182,7 @@ class MECOffloadEnv:
             done_info = {"failed": False, "service_time": service_time, "delay": delay}
 
         # advance the environment clock by the per-task Poisson inter-arrival time
-        elapsed = self.rng.expovariate(1.0 / max(s.poisson_interarrival, 0.1))
+        elapsed = self.rng.expovariate(1.0 / max(p.poisson_interarrival, 0.1))
         self.clock += elapsed
         self._inject_background_load(elapsed)
 
@@ -200,11 +205,18 @@ class MECOffloadEnv:
         Split 80/20 between edge and cloud, mirroring a default
         edge-priority-style offloading mix, spread evenly across the N
         edge servers so no single server absorbs every other device's load.
+
+        Uses this scenario's own app_profile as a stand-in for "typical"
+        background-device characteristics (poisson_interarrival, task
+        length, vm utilization) rather than a population-wide weighted
+        average across all four APP_PROFILES -- a simplification, since
+        real background devices would run a mix of app types too, not all
+        the same one as the controlled device.
         """
         if self._background_devices <= 0 or elapsed <= 0:
             return
-        s = self.scenario
-        rate = self._background_devices / max(s.poisson_interarrival, 0.1)
+        p = self.scenario.app_profile
+        rate = self._background_devices / max(p.poisson_interarrival, 0.1)
         n_arrivals = self._poisson_sample(rate * elapsed)
         if n_arrivals <= 0:
             return
@@ -220,15 +232,15 @@ class MECOffloadEnv:
         # thousands.
         if edge_share > 0 and self.n_edge > 0:
             per_server = edge_share / self.n_edge
-            process_time = s.task_length / config.EDGE_VM_MIPS
-            desired = per_server * s.vm_utilization_on_edge
+            process_time = p.task_length / config.EDGE_VM_MIPS
+            desired = per_server * p.vm_utilization_on_edge
             for index in range(self.n_edge):
                 room = max(0.0, _SATURATION_CEILING - self.mu_edge[index])
                 self._occupy("edge", index, min(desired, room), process_time)
 
         if cloud_share > 0:
-            process_time = s.task_length / config.CLOUD_VM_MIPS
-            desired = cloud_share * s.vm_utilization_on_cloud
+            process_time = p.task_length / config.CLOUD_VM_MIPS
+            desired = cloud_share * p.vm_utilization_on_cloud
             room = max(0.0, _SATURATION_CEILING - self.mu_cloud)
             self._occupy("cloud", 0, min(desired, room), process_time)
 
@@ -265,9 +277,3 @@ class MECOffloadEnv:
             return float("inf")
         data_mbit = (task.data_upload + task.data_download) / 1000.0 * 8.0
         return config.WAN_PROPAGATION_DELAY + data_mbit / bandwidth_mbps
-
-
-def _jitter_range(center: float, frac: float):
-    lo = max(center * (1 - frac), 1.0)
-    hi = center * (1 + frac)
-    return lo, hi

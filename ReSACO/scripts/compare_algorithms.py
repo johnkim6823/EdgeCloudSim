@@ -2,14 +2,13 @@
 meta-init), DDPG, A2C, A3C as the number of mobile devices increases from
 200 to 2,000 in steps of 200 (Fig. 6/7 and Table III of the paper).
 
-Since resaco/env.py models a single MD's task stream against shared
-edge/cloud capacity pools (rather than the full multi-thousand-device
-CloudSim simulation), the number of MDs is approximated as a contention
-multiplier: interarrival time is divided by (devices / 200), i.e. going
-from 200 to 2,000 devices scales the aggregate arrival rate into the
-shared edge/cloud capacity by 10x, matching the paper's qualitative trend
-(rising contention/failure as MDs increase) without requiring a full
-multi-agent simulator.
+resaco/env.py models a single agent-controlled MD's task stream, but the
+other (devices - 1) MDs' contention is real, not just approximated: every
+step, env._inject_background_load admits a Poisson-sampled batch of
+background tasks straight into the shared edge/cloud pools, scaled by
+device count -- so bumping device_count here (scenario_for_device_count)
+just updates number_of_mobile_devices and env.py's own background-load
+injection does the rest, without requiring a full multi-agent simulator.
 
 Usage:
     python scripts/compare_algorithms.py [--episode-steps N] [--seed S]
@@ -83,12 +82,11 @@ def evaluate(agent, scenario, episode_steps, seed):
 
 
 def scenario_for_device_count(base_scenario, device_count):
-    contention = device_count / 200.0
-    return replace(
-        base_scenario,
-        number_of_mobile_devices=device_count,
-        poisson_interarrival=max(base_scenario.poisson_interarrival / contention, 0.1),
-    )
+    """Device count alone now drives real background contention (see
+    env._inject_background_load, whose background_devices = count - 1) --
+    no need to also artificially scale poisson_interarrival like an
+    earlier version of this function did before that existed."""
+    return replace(base_scenario, number_of_mobile_devices=device_count)
 
 
 def main():

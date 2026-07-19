@@ -9,6 +9,13 @@ from functools import partial
 from natsort import natsorted
 import numpy as np
 import pandas as pd
+import matplotlib
+
+# This script only ever calls plt.savefig(), never plt.show() -- force the
+# non-interactive Agg backend so it works headless (CI, SSH, no DISPLAY)
+# instead of depending on matplotlib's own auto-detection picking one.
+# Must come before importing pyplot, which locks the backend in on import.
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import scienceplots
 

@@ -32,13 +32,15 @@ def main():
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
 
-    print(f"Sampling {args.scenarios} meta-training scenarios (Table II ranges)...")
+    print(f"Sampling {args.scenarios} meta-training scenarios "
+          f"(app type weighted by usage_percentage x device count range)...")
     scenarios = sample_scenario_pool(args.scenarios, seed=args.seed)
     for i, s in enumerate(scenarios):
-        print(f"  S{i}: devices={s.number_of_mobile_devices} "
-              f"interarrival={s.poisson_interarrival:.1f}s "
-              f"vm_util(edge/cloud/mobile)={s.vm_utilization_on_edge:.1f}/"
-              f"{s.vm_utilization_on_cloud:.2f}/{s.vm_utilization_on_mobile:.1f}")
+        p = s.app_profile
+        print(f"  S{i}: devices={s.number_of_mobile_devices} app={p.name} "
+              f"interarrival={p.poisson_interarrival:.1f}s "
+              f"vm_util(edge/cloud/mobile)={p.vm_utilization_on_edge:.1f}/"
+              f"{p.vm_utilization_on_cloud:.2f}/{p.vm_utilization_on_mobile:.1f}")
 
     print(f"\nRunning Outer Loop: K={args.outer} outer iterations, "
           f"N={args.inner} inner SAC updates per iteration...")

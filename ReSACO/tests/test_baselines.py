@@ -8,16 +8,17 @@ from resaco.env import MECOffloadEnv
 from resaco.baselines.a2c import A2CAgent
 from resaco.baselines.a3c import A3CTrainer
 from resaco.baselines.ddpg import DDPGAgent
-from resaco.scenario import Scenario
+from resaco.scenario import AppProfile, Scenario
 
 
 def _make_scenario():
-    return Scenario(
-        usage_percentage=20.0, poisson_interarrival=8.0, delay_sensitivity=0.5,
-        active_period=30.0, idle_period=30.0, data_upload=200.0, data_download=200.0,
-        task_length=3000.0, vm_utilization_on_edge=10.0, vm_utilization_on_cloud=1.0,
-        vm_utilization_on_mobile=10.0, number_of_mobile_devices=500,
+    profile = AppProfile(
+        name="TEST_APP", usage_percentage=100.0, poisson_interarrival=8.0,
+        delay_sensitivity=0.5, active_period=30.0, idle_period=30.0,
+        data_upload=200.0, data_download=200.0, task_length=3000.0, required_core=1,
+        vm_utilization_on_edge=10.0, vm_utilization_on_cloud=1.0, vm_utilization_on_mobile=10.0,
     )
+    return Scenario(app_profile=profile, number_of_mobile_devices=500)
 
 
 def test_ddpg_uses_its_own_learning_rates_not_sacs():

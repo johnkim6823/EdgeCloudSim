@@ -82,10 +82,11 @@ def main():
     theta_star = torch.load(args.theta, map_location="cpu")
 
     test_scenario = sample_scenario(__import__("random").Random(args.seed))
+    p = test_scenario.app_profile
     print(f"Test scenario (held out, seed={args.seed}): devices={test_scenario.number_of_mobile_devices} "
-          f"interarrival={test_scenario.poisson_interarrival:.1f}s "
-          f"vm_util(edge/cloud/mobile)={test_scenario.vm_utilization_on_edge:.1f}/"
-          f"{test_scenario.vm_utilization_on_cloud:.2f}/{test_scenario.vm_utilization_on_mobile:.1f}")
+          f"app={p.name} interarrival={p.poisson_interarrival:.1f}s "
+          f"vm_util(edge/cloud/mobile)={p.vm_utilization_on_edge:.1f}/"
+          f"{p.vm_utilization_on_cloud:.2f}/{p.vm_utilization_on_mobile:.1f}")
 
     print(f"\nRunning meta-initialization curve ({args.episodes} episodes x {args.inner} SAC updates)...")
     meta_rewards = run_curve(theta_star, test_scenario, args.episodes, args.inner,

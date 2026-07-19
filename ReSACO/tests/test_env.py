@@ -1,25 +1,22 @@
 from resaco import config
 from resaco.env import MECOffloadEnv, _SATURATION_CEILING
-from resaco.scenario import Scenario
+from resaco.scenario import AppProfile, Scenario
 
 
 def _make_scenario(number_of_mobile_devices=1, poisson_interarrival=10.0,
                     vm_utilization_on_mobile=10.0, vm_utilization_on_edge=10.0,
                     vm_utilization_on_cloud=1.0, task_length=3000.0):
-    return Scenario(
-        usage_percentage=20.0,
+    profile = AppProfile(
+        name="TEST_APP", usage_percentage=100.0,
         poisson_interarrival=poisson_interarrival,
-        delay_sensitivity=0.5,
-        active_period=30.0,
-        idle_period=30.0,
-        data_upload=200.0,
-        data_download=200.0,
-        task_length=task_length,
+        delay_sensitivity=0.5, active_period=30.0, idle_period=30.0,
+        data_upload=200.0, data_download=200.0, task_length=task_length,
+        required_core=1,
         vm_utilization_on_edge=vm_utilization_on_edge,
         vm_utilization_on_cloud=vm_utilization_on_cloud,
         vm_utilization_on_mobile=vm_utilization_on_mobile,
-        number_of_mobile_devices=number_of_mobile_devices,
     )
+    return Scenario(app_profile=profile, number_of_mobile_devices=number_of_mobile_devices)
 
 
 def test_reset_returns_correct_state_dim():
@@ -43,9 +40,10 @@ def test_device_tier_reward_is_pure_processing_time():
     env = MECOffloadEnv(_make_scenario(number_of_mobile_devices=1, vm_utilization_on_mobile=5.0,
                                         task_length=4000.0), seed=3)
     env.reset()
-    # _sample_task() jitters task_length by +/-30%, so read back the actual
-    # sampled length step() will use rather than assuming it equals the
-    # scenario's nominal task_length exactly.
+    # _sample_task() draws task_length from an exponential distribution
+    # around the app profile's mean, so read back the actual sampled
+    # length step() will use rather than assuming it equals the profile's
+    # mean task_length exactly.
     actual_task_length = env.current_task.length
     _, reward, _, info = env.step(0)
     expected_process_time = actual_task_length / config.MOBILE_VM_MIPS

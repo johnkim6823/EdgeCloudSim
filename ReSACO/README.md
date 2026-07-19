@@ -57,8 +57,8 @@ numbers as validated results.
 
 ```
 resaco/
-  config.py          Table II metadata ranges + Section V-B-1 hyperparameters
-  scenario.py         randomized scenario (metadata) sampling
+  config.py          device-count range + Section V-B-1 hyperparameters
+  scenario.py         AppProfile x device-count scenario sampling (see "Scenarios" below)
   env.py               lightweight 3-tier offload environment (state/action/reward, Section III)
   networks.py          discrete Actor + twin Critic (Fig. 3)
   replay_buffer.py      replay buffer D
@@ -112,7 +112,7 @@ Also runs automatically on every push/PR via
 `scripts/tests/` too), so a regression here shows up without anyone
 having to remember to run `pytest` locally.
 
-37 tests, ~2-3 seconds, no GPU/network/trained-checkpoint dependency
+44 tests, ~3-4 seconds, no GPU/network/trained-checkpoint dependency
 (agents are freshly constructed per test; `test_bridge.py` writes throwaway
 fake checkpoints to `tmp_path` rather than touching `checkpoints/`).
 Coverage is weighted toward regression protection for the bugs found and
@@ -131,6 +131,9 @@ hypothetical:
   (autosave-every-N-updates, resume-from-adapted-checkpoint on restart).
 - `test_replay_buffer.py` -- basic sanity coverage for the one piece of
   shared state every agent depends on.
+- `test_scenario.py` -- the four real app profiles are present and match
+  `applications.xml`, and `sample_scenario_pool`'s app-type mix roughly
+  tracks each profile's `usage_percentage` (see "Scenarios" below).
 
 Not covered: the Java side, the TCP wire protocol end-to-end (covered
 manually -- see this file's protocol section -- not by an automated
@@ -138,6 +141,31 @@ socket test), and anything requiring a trained checkpoint (convergence
 quality, actual tier-selection behavior) -- those are evaluated by
 actually running `train_meta.py`/`plot_convergence.py`/
 `compare_algorithms.py`, not asserted on in a fast unit test.
+
+## Scenarios
+
+Every meta-training scenario now picks one of the four *real* application
+types (`scripts/{ReSACO,three_tier}/config/applications.xml`'s
+`AUGMENTED_REALITY`, `HEALTH_APP`, `HEAVY_COMP_APP`, `INFOTAINMENT_APP`,
+mirrored exactly in `scenario.py`'s `APP_PROFILES`), weighted by that
+app's real `usage_percentage` -- matching how EdgeCloudSim's own
+`IdleActiveLoadGenerator` assigns each mobile device exactly one app type
+for the whole simulation. `env.py`'s `_sample_task()` then draws task
+length / upload / download size from an exponential distribution around
+that app's own mean, exactly like `IdleActiveLoadGenerator`'s
+`ExponentialDistribution`, not a bounded uniform jitter.
+
+**Fixed this pass:** the previous version sampled task_length,
+data_upload/download, poisson_interarrival, delay_sensitivity,
+active/idle period, and vm_utilization_on_* from a single abstract
+"Table II range" -- a homogeneous task profile no real simulation run
+ever actually uses. It also meaningfully understated task variety: the
+old task_length range topped out at 10000, while `HEAVY_COMP_APP`'s real
+mean is 45000 -- so the training distribution never included the kind of
+long, expensive task the real deployment generates roughly a fifth of the
+time. `number_of_mobile_devices` is still randomized per scenario (Table
+II's range, 200-2000) since it's a genuinely free environmental
+condition no config file fixes.
 
 ## Train
 
